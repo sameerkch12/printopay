@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #080b14;
+  --card: #0f1220;
+  --elevated: #141828;
+  --surface: #1a2035;
+  --input: #1e2540;
+  --border: rgba(255, 255, 255, 0.07);
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --accent: #a855f7;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --primary-foreground: #f1f5f9;
+  --secondary: #94a3b8;
+  --muted: #475569;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-elevated: var(--elevated);
+  --color-surface: var(--surface);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.18), transparent 32%),
+    radial-gradient(circle at 90% 10%, rgba(168, 85, 247, 0.16), transparent 28%),
+    var(--bg);
+  color: var(--primary-foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.35);
+}
