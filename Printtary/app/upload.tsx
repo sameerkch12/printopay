@@ -34,12 +34,13 @@ const ACCEPTED_MIME_TYPES = [
   'image/heif',
 ];
 const MAX_SIZE_MB = APP_CONFIG.maxFileSizeMB;
+const MAX_FILES = 10;
 
 export default function UploadScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { shopId } = useLocalSearchParams<{ shopId?: string }>();
-  const { setSelectedFile, selectedShop, setSelectedShop, selectedFile } = usePrint();
+  const { setSelectedFile, selectedShop, setSelectedShop, selectedFile, selectedFiles, setSelectedFiles } = usePrint();
   const { showAlert } = useAlert();
 
   const [uploading, setUploading] = useState(false);
@@ -73,13 +74,19 @@ export default function UploadScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         type: ACCEPTED_MIME_TYPES,
         copyToCacheDirectory: true,
+        multiple: true,
       });
 
       if (result.canceled) return;
-      const asset = result.assets[0];
+      const assets = result.assets.slice(0, MAX_FILES - selectedFiles.length);
+
+      if (!assets.length) {
+        showAlert('Limit Reached', `You can add up to ${MAX_FILES} files in one print job.`);
+        return;
+      }
 
       // Check file size
-      if (asset.size && asset.size > MAX_SIZE_MB * 1024 * 1024) {
+      if (assets.some((asset) => asset.size && asset.size > MAX_SIZE_MB * 1024 * 1024)) {
         showAlert('File Too Large', `Maximum file size is ${MAX_SIZE_MB}MB. Please choose a smaller file.`);
         return;
       }
@@ -90,8 +97,8 @@ export default function UploadScreen() {
 
       setUploadProgress(100);
 
-      const file: UploadedFile = {
-        id: `file_${Date.now()}`,
+      const files: UploadedFile[] = assets.map((asset, index) => ({
+        id: `file_${Date.now()}_${index}`,
         name: asset.name,
         size: asset.size ?? 0,
         type: asset.mimeType ?? mimeTypeFromName(asset.name),
@@ -99,9 +106,9 @@ export default function UploadScreen() {
         pages: 1,
         uploadedAt: new Date(),
         expiresAt: new Date(Date.now() + 24 * 3600000),
-      };
+      }));
 
-      setSelectedFile(file);
+      setSelectedFiles([...selectedFiles, ...files].slice(0, MAX_FILES));
       setUploading(false);
 
     } catch {
@@ -111,12 +118,19 @@ export default function UploadScreen() {
   };
 
   const handleContinue = () => {
-    if (selectedFile) {
+    if (selectedFiles.length) {
       router.push({ pathname: '/print-settings', params: selectedShop ? { shopId: selectedShop.id } : undefined });
     }
   };
 
-  const handleRemove = () => {
+  const handleRemove = (fileId?: string) => {
+    if (fileId) {
+      const nextFiles = selectedFiles.filter((file) => file.id !== fileId);
+      setSelectedFiles(nextFiles);
+      setSelectedFile(nextFiles[0] ?? null);
+      return;
+    }
+    setSelectedFiles([]);
     setSelectedFile(null);
     setUploadProgress(0);
   };
@@ -132,7 +146,7 @@ export default function UploadScreen() {
 
       {/* Steps indicator */}
       <View style={styles.stepsBar}>
-        {['Shop', 'Upload', 'Settings', 'OTP'].map((step, idx) => (
+        {['Shop', 'Upload', 'Settings', 'Print Code'].map((step, idx) => (
           <React.Fragment key={step}>
             <View style={styles.stepItem}>
               <View style={[styles.stepDot, idx <= 1 && styles.stepDotDone, idx === 1 && styles.stepDotActive]}>
@@ -157,7 +171,7 @@ export default function UploadScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        {!selectedFile ? (
+        {!selectedFiles.length ? (
           /* Upload zone */
           <View style={styles.uploadSection}>
             <Pressable
@@ -196,7 +210,7 @@ export default function UploadScreen() {
                       ))}
                     </View>
 
-                    <Text style={styles.maxSize}>Maximum file size: {MAX_SIZE_MB}MB</Text>
+                    <Text style={styles.maxSize}>Maximum {MAX_FILES} files. Each file up to {MAX_SIZE_MB}MB</Text>
                   </View>
                 )}
               </LinearGradient>
@@ -212,7 +226,8 @@ export default function UploadScreen() {
                 'PDF, JPG, PNG, WEBP, and HEIC files are supported',
                 'Use clear images for ID cards, forms, notes, and photocopies',
                 'Files are automatically deleted after 24 hours',
-                'Shop owner can download or print only after OTP verification',
+                `Add up to ${MAX_FILES} files in one print job`,
+                'Shop owner can download or print only after print code verification',
               ].map((tip, idx) => (
                 <View key={idx} style={styles.tipItem}>
                   <View style={styles.tipDot} />
@@ -231,13 +246,21 @@ export default function UploadScreen() {
               >
                 <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.successTitle}>File ready to print!</Text>
-                  <Text style={styles.successSubtitle}>Configure print settings in the next step</Text>
+                  <Text style={styles.successTitle}>{selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} ready to print!</Text>
+                  <Text style={styles.successSubtitle}>You can add up to {MAX_FILES} files before continuing</Text>
                 </View>
               </LinearGradient>
             </View>
 
-            <FileCard file={selectedFile} onRemove={handleRemove} />
+            {selectedFiles.map((file) => (
+              <FileCard key={file.id} file={file} onRemove={() => handleRemove(file.id)} />
+            ))}
+            {selectedFiles.length < MAX_FILES ? (
+              <Pressable onPress={handleFilePick} disabled={uploading} style={styles.addMoreBtn}>
+                <Ionicons name="add-circle-outline" size={18} color={Colors.primaryLight} />
+                <Text style={styles.addMoreText}>Add more files ({selectedFiles.length}/{MAX_FILES})</Text>
+              </Pressable>
+            ) : null}
 
             {/* File details */}
             <GlassCard gradient>
@@ -246,12 +269,12 @@ export default function UploadScreen() {
                 <View style={styles.detailItem}>
                   <Text style={styles.detailLabel}>Format</Text>
                   <Text style={styles.detailValue}>
-                    .{selectedFile.name.split('.').pop()?.toUpperCase()}
+                    {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
                   </Text>
                 </View>
                 <View style={styles.detailItem}>
                   <Text style={styles.detailLabel}>Pages</Text>
-                  <Text style={styles.detailValue}>{selectedFile.pages ?? '-'}</Text>
+                  <Text style={styles.detailValue}>{selectedFiles.reduce((total, file) => total + (file.pages ?? 1), 0)}</Text>
                 </View>
                 <View style={styles.detailItem}>
                   <Text style={styles.detailLabel}>Expires in</Text>
@@ -261,7 +284,7 @@ export default function UploadScreen() {
                   <Text style={styles.detailLabel}>Security</Text>
                   <View style={styles.securityBadge}>
                     <Ionicons name="lock-closed" size={10} color={Colors.success} />
-                    <Text style={[styles.detailValue, { color: Colors.success, fontSize: 12 }]}>OTP</Text>
+                    <Text style={[styles.detailValue, { color: Colors.success, fontSize: 12 }]}>Print Code</Text>
                   </View>
                 </View>
               </View>
@@ -287,7 +310,7 @@ export default function UploadScreen() {
       </ScrollView>
 
       {/* Bottom CTA */}
-      {selectedFile && !uploading && (
+      {selectedFiles.length > 0 && !uploading && (
         <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 8 }]}>
           <GradientButton
             title="Configure Print Settings"
@@ -465,6 +488,23 @@ const styles = StyleSheet.create({
   maxSize: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
+    includeFontPadding: false,
+  },
+  addMoreBtn: {
+    minHeight: 48,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.28)',
+    backgroundColor: 'rgba(99,102,241,0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  addMoreText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    color: Colors.primaryLight,
     includeFontPadding: false,
   },
   uploadingState: {

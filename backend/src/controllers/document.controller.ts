@@ -1,17 +1,11 @@
 import { Request, Response } from 'express';
-import { env } from '../config/env';
 import { DocumentAsset } from '../models/DocumentAsset';
-import { uploadPdfToCloudinary, buildSignedDocumentUrl, readLocalDocument } from '../services/cloudinary.service';
+import { uploadPdfToCloudinary, readLocalDocument } from '../services/cloudinary.service';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/apiResponse';
 
 const fileExpiryMs = 24 * 60 * 60 * 1000;
-
-function absoluteUrl(req: Request, value: string) {
-  if (/^https?:\/\//i.test(value)) return value;
-  return `${req.protocol}://${req.get('host')}${value}`;
-}
 
 export const uploadDocument = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) {
@@ -34,33 +28,13 @@ export const uploadDocument = asyncHandler(async (req: Request, res: Response) =
     expiresAt,
   });
 
-  const signedUrl = absoluteUrl(req, buildSignedDocumentUrl(document.publicId));
-
   return sendSuccess(
     res,
     {
       document,
-      signedUrl,
     },
     201
   );
-});
-
-export const getSignedDocumentUrl = asyncHandler(async (req: Request, res: Response) => {
-  const document = await DocumentAsset.findById(req.params.id);
-
-  if (!document || document.deletedAt) {
-    throw new ApiError(404, 'Document not found');
-  }
-
-  if (document.expiresAt.getTime() <= Date.now()) {
-    throw new ApiError(410, 'Document has expired');
-  }
-
-  return sendSuccess(res, {
-    signedUrl: absoluteUrl(req, buildSignedDocumentUrl(document.publicId)),
-    expiresInSeconds: env.SIGNED_URL_EXPIRES_SECONDS,
-  });
 });
 
 export const getLocalDocument = asyncHandler(async (req: Request, res: Response) => {

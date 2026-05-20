@@ -5,7 +5,7 @@ import { DocumentAsset } from '../models/DocumentAsset';
 import { PrintJob } from '../models/PrintJob';
 import { Shop } from '../models/Shop';
 import { signPrintAccessToken, verifyPrintAccessToken } from '../services/auth.service';
-import { buildSignedDocumentUrl, isLocalDocumentPublicId, readLocalDocument } from '../services/cloudinary.service';
+import { buildDocumentFetchUrl, isLocalDocumentPublicId, readLocalDocument } from '../services/cloudinary.service';
 import { emitRealtime } from '../services/realtime.service';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -20,7 +20,7 @@ type PrintJobModelDocument = HydratedDocument<InferSchemaType<typeof PrintJob.sc
 
 function getStatusMessage(status: string) {
   const messages: Record<string, string> = {
-    processing: 'OTP verified, preparing document',
+    processing: 'Print code verified, preparing document',
     printing: 'Printing started',
     completed: 'Print completed',
     failed: 'Print job failed',
@@ -30,9 +30,9 @@ function getStatusMessage(status: string) {
   return messages[status] ?? 'Status updated';
 }
 
-function getShopId(printJob: { shop: unknown }) {
-  const shop = printJob.shop as { _id?: unknown } | string;
-  return String(typeof shop === 'object' && shop !== null && '_id' in shop ? shop._id : shop);
+function getShopId(printJob: { shop?: unknown }) {
+  const shop = printJob.shop as { _id?: unknown } | string | undefined;
+  return String(typeof shop === 'object' && shop !== null && '_id' in shop ? shop._id : shop ?? '');
 }
 
 function withoutOtpHash(printJob: { toObject: () => Record<string, unknown> }) {
@@ -47,21 +47,34 @@ function buildPrintDocumentUrl(req: Request, jobId: string, shopId: string) {
   return `${origin}${req.baseUrl}/${jobId}/print-document?token=${encodeURIComponent(token)}`;
 }
 
+function buildPrintDocumentUrlForDocument(req: Request, jobId: string, shopId: string, documentId: string) {
+  return `${buildPrintDocumentUrl(req, jobId, shopId)}&documentId=${encodeURIComponent(documentId)}`;
+}
+
 function safeFileName(fileName: string) {
   return fileName.replace(/[^\w.\- ()]/g, '_');
 }
 
+function getShopRate(shop: { printRates?: { bwPerPage?: number; colorPerPage?: number } | null }, color: string) {
+  const rates = shop.printRates ?? {};
+  return color === 'color' ? rates.colorPerPage ?? 10 : rates.bwPerPage ?? 2;
+}
+
 async function completePrintJobWithOtp(req: Request, printJob: PrintJobModelDocument | null, otp: string) {
   if (!printJob) {
-    throw new ApiError(404, 'No pending document found for this OTP');
+    throw new ApiError(404, 'No pending document found for this print code');
   }
 
   if (!req.auth?.shopId || getShopId(printJob) !== req.auth.shopId) {
-    throw new ApiError(404, 'No pending document found for this OTP');
+    throw new ApiError(404, 'No pending document found for this print code');
   }
 
-  const document = printJob.document as unknown as { expiresAt?: Date };
-  const expiresAt = document.expiresAt ?? printJob.otpExpiresAt;
+  if (!printJob.otpExpiresAt) {
+    throw new ApiError(410, 'Document has expired');
+  }
+  const expiresAt = printJob.otpExpiresAt instanceof Date
+    ? printJob.otpExpiresAt
+    : new Date(String(printJob.otpExpiresAt));
 
   if (expiresAt.getTime() <= Date.now()) {
     printJob.status = 'expired';
@@ -75,14 +88,14 @@ async function completePrintJobWithOtp(req: Request, printJob: PrintJobModelDocu
   }
 
   if (printJob.otpHash !== hashOtp(otp)) {
-    throw new ApiError(401, 'Invalid OTP');
+    throw new ApiError(401, 'Invalid print code');
   }
 
   if (printJob.status === 'pending') {
     printJob.status = 'processing';
     printJob.statusHistory.push({
       status: 'processing',
-      message: 'OTP verified, preparing document',
+      message: 'Print code verified, preparing document',
       at: new Date(),
     });
     await printJob.save();
@@ -98,19 +111,24 @@ async function completePrintJobWithOtp(req: Request, printJob: PrintJobModelDocu
 }
 
 export const createPrintJob = asyncHandler(async (req: Request, res: Response) => {
-  const { documentId, shopId, userId, settings, estimatedPages } = req.body;
+  const { documentId, documentIds, shopId, userId, settings, documentSettings, usedDefaultSettings, estimatedPages } = req.body;
+  const requestedDocumentIds = Array.from(new Set([...(documentIds ?? []), ...(documentId ? [documentId] : [])]));
 
-  const [document, shop] = await Promise.all([
-    DocumentAsset.findById(documentId),
+  const [foundDocuments, shop] = await Promise.all([
+    DocumentAsset.find({ _id: { $in: requestedDocumentIds } }),
     Shop.findById(shopId),
   ]);
+  const documentsById = new Map(foundDocuments.map((document) => [String(document._id), document]));
+  const documents = requestedDocumentIds
+    .map((id) => documentsById.get(String(id)))
+    .filter((document): document is NonNullable<typeof document> => Boolean(document));
 
-  if (!document || document.deletedAt) {
-    throw new ApiError(404, 'Document not found');
+  if (documents.length !== requestedDocumentIds.length || documents.some((document) => document.deletedAt)) {
+    throw new ApiError(404, 'One or more documents were not found');
   }
 
-  if (document.expiresAt.getTime() <= Date.now()) {
-    throw new ApiError(410, 'Document has expired');
+  if (documents.some((document) => document.expiresAt.getTime() <= Date.now())) {
+    throw new ApiError(410, 'One or more documents have expired');
   }
 
   if (!shop || !shop.isActive || shop.approvalStatus !== 'approved') {
@@ -118,21 +136,65 @@ export const createPrintJob = asyncHandler(async (req: Request, res: Response) =
   }
 
   const otp = generateOtp();
-  const otpExpiresAt = document.expiresAt;
+  const [firstDocument] = documents;
+  const otpExpiresAt = documents.reduce((earliest, document) => (
+    document.expiresAt < earliest ? document.expiresAt : earliest
+  ), firstDocument.expiresAt);
+  const documentSettingsById = new Map(
+    (documentSettings ?? []).map((item: {
+      documentId: string;
+      fileName?: string;
+      pages?: number;
+      chargeablePages?: number;
+      estimatedPrice?: number;
+      settings: {
+        color: string;
+        copies: number;
+        pageRange: string;
+        orientation: string;
+        sides: string;
+        paperSize: string;
+      };
+    }) => [item.documentId, item])
+  );
+  const savedDocumentSettings = documents.map((document) => {
+    const item = documentSettingsById.get(String(document._id)) as {
+      fileName?: string;
+      pages?: number;
+      chargeablePages?: number;
+      estimatedPrice?: number;
+      settings?: typeof settings;
+    } | undefined;
+    return {
+      document: document._id,
+      fileName: item?.fileName ?? document.originalName,
+      pages: item?.pages ?? 1,
+      chargeablePages: item?.chargeablePages,
+      estimatedPrice: item?.estimatedPrice,
+      settings: item?.settings ?? settings,
+    };
+  });
+  const estimatedPrice = savedDocumentSettings.reduce((total, item) => (
+    total + (item.estimatedPrice ?? (item.chargeablePages ?? 1) * getShopRate(shop, item.settings.color))
+  ), 0);
 
   const printJob = await PrintJob.create({
     jobNumber: generateJobNumber(),
-    document: document._id,
+    document: firstDocument._id,
+    documents: documents.map((document) => document._id),
     shop: shop._id,
     userId,
     settings,
+    documentSettings: savedDocumentSettings,
+    usedDefaultSettings: Boolean(usedDefaultSettings),
     otpHash: hashOtp(otp),
     otpExpiresAt,
     estimatedPages: estimatedPages ?? 1,
+    estimatedPrice,
     statusHistory: [
       {
         status: 'pending',
-        message: 'Upload received, awaiting OTP verification at shop',
+        message: 'Upload received, awaiting print code verification at shop',
       },
     ],
   });
@@ -162,6 +224,7 @@ export const listShopPrintJobs = asyncHandler(async (req: Request, res: Response
   const jobs = await PrintJob.find({ shop: req.auth.shopId })
     .select('-otpHash')
     .populate('document')
+    .populate('documents')
     .populate('shop')
     .sort({ createdAt: -1 })
     .limit(100);
@@ -173,6 +236,7 @@ export const getPrintJob = asyncHandler(async (req: Request, res: Response) => {
   const printJob = await PrintJob.findById(req.params.id)
     .select('-otpHash')
     .populate('document')
+    .populate('documents')
     .populate('shop');
 
   if (!printJob) {
@@ -190,6 +254,7 @@ export const getPublicPrintJobStatus = asyncHandler(async (req: Request, res: Re
   const printJob = await PrintJob.findById(req.params.id)
     .select('-otpHash')
     .populate('document')
+    .populate('documents')
     .populate('shop');
 
   if (!printJob) {
@@ -203,6 +268,21 @@ export const getPublicPrintJobStatus = asyncHandler(async (req: Request, res: Re
     sizeBytes: number;
     expiresAt: Date;
   };
+  const documents = ((printJob.documents ?? []) as unknown as Array<{
+    _id: unknown;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    expiresAt: Date;
+  }>).length
+    ? printJob.documents as unknown as Array<{
+      _id: unknown;
+      originalName: string;
+      mimeType: string;
+      sizeBytes: number;
+      expiresAt: Date;
+    }>
+    : [document];
   const shop = printJob.shop as unknown as {
     _id: unknown;
     name: string;
@@ -217,7 +297,10 @@ export const getPublicPrintJobStatus = asyncHandler(async (req: Request, res: Re
     jobNumber: printJob.jobNumber,
     status: printJob.status,
     settings: printJob.settings,
+    documentSettings: printJob.documentSettings,
+    usedDefaultSettings: printJob.usedDefaultSettings,
     estimatedPages: printJob.estimatedPages,
+    estimatedPrice: printJob.estimatedPrice,
     otpExpiresAt: printJob.otpExpiresAt,
     createdAt: printJob.createdAt,
     updatedAt: printJob.updatedAt,
@@ -229,6 +312,13 @@ export const getPublicPrintJobStatus = asyncHandler(async (req: Request, res: Re
       sizeBytes: document.sizeBytes,
       expiresAt: document.expiresAt,
     },
+    documents: documents.map((item) => ({
+      _id: item._id,
+      originalName: item.originalName,
+      mimeType: item.mimeType,
+      sizeBytes: item.sizeBytes,
+      expiresAt: item.expiresAt,
+    })),
     shop: {
       _id: shop._id,
       name: shop.name,
@@ -241,15 +331,19 @@ export const getPublicPrintJobStatus = asyncHandler(async (req: Request, res: Re
 });
 
 export const verifyPrintJobOtp = asyncHandler(async (req: Request, res: Response) => {
-  const printJob = await PrintJob.findById(req.params.id).select('+otpHash').populate('document');
+  const printJob = await PrintJob.findById(req.params.id).select('+otpHash').populate('document').populate('documents').populate('shop');
   const completedJob = await completePrintJobWithOtp(req, printJob, req.body.otp);
-
-  const document = completedJob.document as unknown as { publicId: string };
+  const documents = ((completedJob.documents ?? []) as unknown[]).length
+    ? completedJob.documents as unknown as Array<{ _id: unknown }>
+    : [completedJob.document as unknown as { _id: unknown }];
 
   return sendSuccess(res, {
     printJob: completedJob,
-    signedUrl: buildSignedDocumentUrl(document.publicId),
     printUrl: buildPrintDocumentUrl(req, String(completedJob._id), req.auth?.shopId ?? ''),
+    printUrls: documents.map((document) => ({
+      documentId: String(document._id),
+      url: buildPrintDocumentUrlForDocument(req, String(completedJob._id), req.auth?.shopId ?? '', String(document._id)),
+    })),
   });
 });
 
@@ -257,23 +351,31 @@ export const verifyShopPrintOtp = asyncHandler(async (req: Request, res: Respons
   if (!req.auth?.shopId) {
     throw new ApiError(403, 'Shop access required');
   }
+  const shopId = req.auth.shopId;
 
   const otpHash = hashOtp(req.body.otp);
   const printJob = await PrintJob.findOne({
-    shop: req.auth.shopId,
+    shop: shopId,
     status: { $in: ['pending', 'processing', 'printing', 'completed'] },
     otpHash,
   })
     .select('+otpHash')
-    .populate('document');
+    .populate('document')
+    .populate('documents')
+    .populate('shop');
 
   const completedJob = await completePrintJobWithOtp(req, printJob, req.body.otp);
-  const document = completedJob.document as unknown as { publicId: string };
+  const documents = ((completedJob.documents ?? []) as unknown[]).length
+    ? completedJob.documents as unknown as Array<{ _id: unknown }>
+    : [completedJob.document as unknown as { _id: unknown }];
 
   return sendSuccess(res, {
     printJob: completedJob,
-    signedUrl: buildSignedDocumentUrl(document.publicId),
-    printUrl: buildPrintDocumentUrl(req, String(completedJob._id), req.auth.shopId),
+    printUrl: buildPrintDocumentUrl(req, String(completedJob._id), shopId),
+    printUrls: documents.map((document) => ({
+      documentId: String(document._id),
+      url: buildPrintDocumentUrlForDocument(req, String(completedJob._id), shopId, String(document._id)),
+    })),
   });
 });
 
@@ -288,27 +390,51 @@ export const getPrintableDocument = asyncHandler(async (req: Request, res: Respo
     throw new ApiError(401, 'Invalid print token');
   }
 
-  const printJob = await PrintJob.findById(req.params.id).select('-otpHash').populate('document');
+  const printJob = await PrintJob.findById(req.params.id).select('-otpHash').populate('document').populate('documents');
   if (!printJob || getShopId(printJob) !== payload.shopId || printJob.status === 'pending') {
     throw new ApiError(404, 'Print document not found');
   }
 
-  const document = printJob.document as unknown as {
+  const documents = ((printJob.documents ?? []) as unknown[]).length
+    ? printJob.documents as unknown as Array<{
+      _id: unknown;
+      publicId: string;
+      mimeType: string;
+      originalName: string;
+      expiresAt: Date;
+    }>
+    : [printJob.document as unknown as {
+      _id: unknown;
+      publicId: string;
+      mimeType: string;
+      originalName: string;
+      expiresAt: Date;
+    }];
+  const requestedDocumentId = typeof req.query.documentId === 'string' ? req.query.documentId : undefined;
+  const document = requestedDocumentId
+    ? documents.find((item) => String(item._id) === requestedDocumentId)
+    : documents[0];
+
+  if (!document) {
+    throw new ApiError(404, 'Print document not found');
+  }
+
+  const printableDocument = document as {
     publicId: string;
     mimeType: string;
     originalName: string;
     expiresAt: Date;
   };
 
-  if (document.expiresAt.getTime() <= Date.now()) {
+  if (printableDocument.expiresAt.getTime() <= Date.now()) {
     throw new ApiError(410, 'Document has expired');
   }
 
-  const buffer = isLocalDocumentPublicId(document.publicId)
-    ? await readLocalDocument(document.publicId)
+  const buffer = isLocalDocumentPublicId(printableDocument.publicId)
+    ? await readLocalDocument(printableDocument.publicId)
     : Buffer.from(await (async () => {
-      const signedUrl = buildSignedDocumentUrl(document.publicId);
-      const upstream = await fetch(signedUrl);
+      const documentUrl = buildDocumentFetchUrl(printableDocument.publicId);
+      const upstream = await fetch(documentUrl);
       if (!upstream.ok) {
         throw new ApiError(502, 'Could not load printable document');
       }
@@ -317,9 +443,9 @@ export const getPrintableDocument = asyncHandler(async (req: Request, res: Respo
 
   res.removeHeader('Content-Security-Policy');
   res.removeHeader('X-Frame-Options');
-  res.setHeader('Content-Type', document.mimeType);
+  res.setHeader('Content-Type', printableDocument.mimeType);
   res.setHeader('Content-Length', buffer.length);
-  res.setHeader('Content-Disposition', `inline; filename="${safeFileName(document.originalName)}"`);
+  res.setHeader('Content-Disposition', `inline; filename="${safeFileName(printableDocument.originalName)}"`);
   res.setHeader('Cache-Control', 'no-store');
 
   return res.send(buffer);

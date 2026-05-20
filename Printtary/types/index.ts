@@ -13,6 +13,16 @@ export interface PrintSettings {
   paperSize: PaperSize;
 }
 
+export interface DocumentPrintSettings {
+  documentId?: string;
+  fileId?: string;
+  fileName?: string;
+  pages?: number;
+  chargeablePages?: number;
+  estimatedPrice?: number;
+  settings: PrintSettings;
+}
+
 export interface UploadedFile {
   id: string;
   name: string;
@@ -32,7 +42,10 @@ export interface PrintJob {
   shopName: string;
   shopAddress?: string;
   file: UploadedFile;
+  files?: UploadedFile[];
   settings: PrintSettings;
+  documentSettings?: DocumentPrintSettings[];
+  usedDefaultSettings?: boolean;
   otp: string;
   status: PrintStatus;
   createdAt: Date;

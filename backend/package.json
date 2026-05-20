@@ -1,7 +1,7 @@
 {
-  "name": "printtary-backend",
+  "name": "printopay-backend",
   "version": "1.0.0",
-  "description": "Production-ready backend base for Printtary document uploads and print jobs.",
+  "description": "Production-ready backend base for PrintoPay document uploads and print jobs.",
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",

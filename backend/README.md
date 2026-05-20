@@ -1,4 +1,4 @@
-# Printtary Backend
+# PrintoPay Backend
 
 Production TypeScript Express API with MongoDB, Cloudinary PDF uploads, shop-owner auth, admin auth, OTP verification, and print job status management.
 

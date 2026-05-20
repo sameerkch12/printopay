@@ -21,13 +21,15 @@ import Animated, {
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { usePrint } from '@/hooks/usePrint';
+import { calculatePrintPrice } from '@/services/printService';
 import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow } from '@/constants/theme';
+import { PrintJob, PrintSettings, Shop } from '@/types';
 
 export default function OTPSuccessScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
-  const { jobHistory, resetFlow } = usePrint();
+  const { jobHistory, resetFlow, selectedShop } = usePrint();
 
   const job = jobHistory.find(j => j.id === jobId);
 
@@ -59,13 +61,14 @@ export default function OTPSuccessScreen() {
 
   const handleShare = async () => {
     if (!job) return;
-    const amountLabel = formatRupees(job.estimatedPrice);
-    const rateLabel = formatRatePerPage(job.estimatedPrice, job.estimatedPages);
+    const amount = getPayableAmount(job, selectedShop);
+    const amountLabel = formatRupees(amount);
+    const rateLabel = getPaymentSummary(job, selectedShop).rateLabel;
 
     try {
       await Share.share({
-        message: `PrintSecure OTP\n\nShop: ${job.shopName}\nJob: #${job.jobNumber}\nOTP: ${job.otp}\nAmount: ${amountLabel}\nRate: ${rateLabel}\n\nShow this OTP at the shop counter to start printing.\nFile expires in 24 hours.`,
-        title: 'PrintSecure - Print Job OTP',
+        message: `PrintoPay Print Code\n\nShop: ${job.shopName}\nJob: #${job.jobNumber}\nPrint Code: ${job.otp}\nAmount: ${amountLabel}\nRate: ${rateLabel}\n\nShow this print code at the shop counter to start printing.\nFile expires in 24 hours.`,
+        title: 'PrintoPay - Print Code',
       });
     } catch {}
   };
@@ -91,8 +94,11 @@ export default function OTPSuccessScreen() {
     );
   }
 
-  const amountLabel = formatRupees(job.estimatedPrice);
-  const rateLabel = formatRatePerPage(job.estimatedPrice, job.estimatedPages);
+  const payableAmount = getPayableAmount(job, selectedShop);
+  const amountLabel = formatRupees(payableAmount);
+  const paymentSummary = getPaymentSummary(job, selectedShop);
+  const rateLabel = paymentSummary.rateLabel;
+  const settingsSummary = getSettingsSummary(job);
 
   return (
     <ScrollView
@@ -119,11 +125,11 @@ export default function OTPSuccessScreen() {
 
         <Text style={styles.successTitle}>Upload Successful!</Text>
         <Text style={styles.successSubtitle}>
-          Your document has been securely uploaded. Show the OTP below at the shop counter.
+          Your document has been securely uploaded. Show the print code below at the shop counter.
         </Text>
       </View>
 
-      {/* OTP Display */}
+      {/* Print code display */}
       <Animated.View style={otpStyle}>
         <LinearGradient
           colors={['rgba(99,102,241,0.2)', 'rgba(168,85,247,0.12)']}
@@ -131,14 +137,14 @@ export default function OTPSuccessScreen() {
         >
           <View style={styles.otpHeader}>
             <Ionicons name="key" size={20} color={Colors.primaryLight} />
-            <Text style={styles.otpHeaderTitle}>Your Secure OTP</Text>
+            <Text style={styles.otpHeaderTitle}>Your Print Code</Text>
             <View style={styles.otpExpiry}>
               <Ionicons name="time-outline" size={12} color={Colors.warning} />
               <Text style={styles.otpExpiryText}>Valid 24h</Text>
             </View>
           </View>
 
-          {/* Big OTP digits */}
+          {/* Big print code digits */}
           <View style={styles.otpDigits}>
             {job.otp.split('').map((digit, idx) => (
               <Animated.View key={idx} style={styles.otpDigitBox}>
@@ -153,13 +159,13 @@ export default function OTPSuccessScreen() {
           </View>
 
           <Text style={styles.otpInstruction}>
-            Tell the shop attendant your OTP to authorize printing
+            Tell the shop attendant your print code to authorize printing
           </Text>
 
           {/* Share button */}
           <Pressable onPress={handleShare} style={styles.shareBtn}>
             <Ionicons name="share-social" size={16} color={Colors.primaryLight} />
-            <Text style={styles.shareBtnText}>Share OTP Details</Text>
+            <Text style={styles.shareBtnText}>Share Print Code</Text>
           </Pressable>
         </LinearGradient>
       </Animated.View>
@@ -172,11 +178,11 @@ export default function OTPSuccessScreen() {
             {[
               { icon: 'receipt', label: 'Job Number', value: `#${job.jobNumber}` },
               { icon: 'storefront', label: 'Shop', value: job.shopName },
-              { icon: 'document-text', label: 'File', value: job.file.name },
-              { icon: 'contrast', label: 'Color', value: job.settings.color === 'bw' ? 'Black & White' : 'Color' },
-              { icon: 'copy', label: 'Copies', value: `${job.settings.copies}x` },
-              { icon: 'layers', label: 'Sides', value: job.settings.sides === 'single' ? 'Single' : 'Double' },
-              { icon: 'resize', label: 'Paper', value: job.settings.paperSize },
+              { icon: 'document-text', label: 'File', value: job.files?.length ? `${job.files.length} files` : job.file.name },
+              { icon: 'contrast', label: 'Color', value: settingsSummary.color },
+              { icon: 'copy', label: 'Copies', value: settingsSummary.copies },
+              { icon: 'layers', label: 'Sides', value: settingsSummary.sides },
+              { icon: 'resize', label: 'Paper', value: settingsSummary.paper },
               { icon: 'time', label: 'Expires', value: '24 hours' },
             ].map(item => (
               <View key={item.label} style={styles.detailRow}>
@@ -201,8 +207,8 @@ export default function OTPSuccessScreen() {
           </View>
           <View style={styles.paymentRows}>
             <PaymentRow label="Rate" value={rateLabel} />
-            <PaymentRow label="Pages" value={`${job.estimatedPages} pages`} />
-            <PaymentRow label="Copies" value={`${job.settings.copies}x`} />
+            <PaymentRow label="Pages" value={`${paymentSummary.pages} pages`} />
+            <PaymentRow label="Copies" value={settingsSummary.copies} />
           </View>
         </GlassCard>
 
@@ -246,9 +252,72 @@ function formatRupees(amount?: number) {
   return typeof amount === 'number' ? `Rs ${amount.toFixed(0)}` : 'Rs --';
 }
 
+function getPayableAmount(job: PrintJob, selectedShop: Shop | null) {
+  const summary = getPaymentSummary(job, selectedShop);
+  if (typeof summary.amount === 'number') return summary.amount;
+  if (typeof job.estimatedPrice === 'number') return job.estimatedPrice;
+  return undefined;
+}
+
 function formatRatePerPage(amount: number | undefined, pages: number) {
   if (typeof amount !== 'number' || pages <= 0) return 'Rs --/page';
   return `Rs ${(amount / pages).toFixed(0)}/page`;
+}
+
+function pageCountForSettings(settings: PrintSettings, pages: number) {
+  return Math.max(1, Math.ceil(pages * settings.copies * (settings.sides === 'double' ? 0.5 : 1)));
+}
+
+function getDocumentSettings(job: PrintJob) {
+  if (job.documentSettings?.length) return job.documentSettings;
+  return [{
+    fileId: job.file.id,
+    fileName: job.file.name,
+    settings: job.settings,
+  }];
+}
+
+function getPaymentSummary(job: PrintJob, selectedShop: Shop | null) {
+  const documentSettings = getDocumentSettings(job);
+  const files = job.files?.length ? job.files : [job.file];
+  const pages = documentSettings.reduce((total, item, index) => (
+    total + pageCountForSettings(item.settings, files[index]?.pages ?? 1)
+  ), 0);
+
+  if (selectedShop?.id !== job.shopId) {
+    return {
+      amount: typeof job.estimatedPrice === 'number' ? job.estimatedPrice : undefined,
+      pages: job.estimatedPages,
+      rateLabel: formatRatePerPage(job.estimatedPrice, job.estimatedPages),
+    };
+  }
+
+  const amount = documentSettings.reduce((total, item, index) => {
+    const chargeablePages = pageCountForSettings(item.settings, files[index]?.pages ?? 1);
+    return total + calculatePrintPrice(selectedShop, item.settings, chargeablePages);
+  }, 0);
+
+  return {
+    amount,
+    pages,
+    rateLabel: documentSettings.length > 1 ? 'Mixed rates' : formatRatePerPage(amount, pages),
+  };
+}
+
+function mixedValue<T>(values: T[], formatter: (value: T) => string) {
+  if (!values.length) return '--';
+  const formatted = values.map(formatter);
+  return formatted.every((value) => value === formatted[0]) ? formatted[0] : 'Mixed';
+}
+
+function getSettingsSummary(job: PrintJob) {
+  const settings = getDocumentSettings(job).map((item) => item.settings);
+  return {
+    color: mixedValue(settings, (item) => item.color === 'bw' ? 'Black & White' : 'Color'),
+    copies: mixedValue(settings, (item) => `${item.copies}x`),
+    sides: mixedValue(settings, (item) => item.sides === 'single' ? 'Single' : 'Double'),
+    paper: mixedValue(settings, (item) => item.paperSize),
+  };
 }
 
 function PaymentRow({ label, value }: { label: string; value: string }) {

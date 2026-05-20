@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  name: 'PrintSecure',
+  name: 'PrintoPay',
   tagline: 'Print Without Sharing on WhatsApp',
   version: '1.0.0',
   otpExpiry: 15, // minutes
@@ -13,6 +13,14 @@ export const PRINT_CONFIG = {
   defaultPaperSize: 'A4',
   maxCopies: 50,
   defaultCopies: 1,
+  defaultSettings: {
+    color: 'color',
+    copies: 1,
+    pageRange: 'All',
+    orientation: 'portrait',
+    sides: 'single',
+    paperSize: 'A4',
+  },
 };
 
 export const SUBSCRIPTION_PLANS = [

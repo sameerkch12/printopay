@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +27,22 @@ const FIXED_DEFAULTS = {
   sides: 'single',
   paperSize: 'A4',
 } satisfies Pick<PrintSettings, 'sides' | 'paperSize'>;
+const DEFAULT_PRINT_SETTINGS = PRINT_CONFIG.defaultSettings as PrintSettings;
+
+function isDefaultPrintSettings(settings: PrintSettings) {
+  return (
+    settings.color === DEFAULT_PRINT_SETTINGS.color &&
+    settings.copies === DEFAULT_PRINT_SETTINGS.copies &&
+    settings.pageRange === DEFAULT_PRINT_SETTINGS.pageRange &&
+    settings.orientation === DEFAULT_PRINT_SETTINGS.orientation &&
+    settings.sides === DEFAULT_PRINT_SETTINGS.sides &&
+    settings.paperSize === DEFAULT_PRINT_SETTINGS.paperSize
+  );
+}
+
+function fileKey(fileId?: string, index = 0) {
+  return fileId || `file-${index}`;
+}
 
 export default function PrintSettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -33,9 +50,10 @@ export default function PrintSettingsScreen() {
   const { shopId } = useLocalSearchParams<{ shopId?: string }>();
   const { isSignedIn, isLoaded } = useAuth();
   const {
-    printSettings,
     setPrintSettings,
     selectedFile,
+    selectedFiles,
+    setSelectedFiles,
     isUploading,
     uploadProgress,
     submitPrintJob,
@@ -43,13 +61,14 @@ export default function PrintSettingsScreen() {
     setSelectedShop,
   } = usePrint();
 
-  const [settings, setSettings] = useState<PrintSettings>({
-    ...printSettings,
-    pageRange: printSettings.pageRange || 'All',
-    ...FIXED_DEFAULTS,
+  const [settings] = useState<PrintSettings>({
+    ...DEFAULT_PRINT_SETTINGS,
   });
+  const [settingsByFileId, setSettingsByFileId] = useState<Record<string, PrintSettings>>({});
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const { width } = useWindowDimensions();
 
   React.useEffect(() => {
     let mounted = true;
@@ -66,31 +85,98 @@ export default function PrintSettingsScreen() {
     };
   }, [selectedShop?.id, setSelectedShop, shopId]);
 
-  const filePages = selectedFile?.pages ?? 1;
-  const selectedPages = parseRangeCount(settings.pageRange, filePages);
-  const totalPages = Math.max(1, selectedPages * settings.copies);
-  const finalPrice = calculatePrintPrice(selectedShop, settings, totalPages);
-  const isImageFile = selectedFile?.type.startsWith('image/');
-  const landscape = settings.orientation === 'landscape';
-  const blackAndWhitePreview = settings.color === 'bw'
+  const filesToPrint = useMemo(
+    () => selectedFiles.length ? selectedFiles : selectedFile ? [selectedFile] : [],
+    [selectedFile, selectedFiles]
+  );
+  const activeFile = filesToPrint[activeFileIndex] ?? filesToPrint[0];
+  const activeFilePages = activeFile?.pages ?? 1;
+  const activeFileKey = fileKey(activeFile?.id, activeFileIndex);
+  const activeSettings = settingsByFileId[activeFileKey] ?? settings;
+  const documentSettings = filesToPrint.map((file, index) => ({
+    fileId: file.id,
+    fileName: file.name,
+    settings: index === activeFileIndex
+      ? activeSettings
+      : settingsByFileId[fileKey(file.id, index)] ?? settings,
+  }));
+  const filePages = filesToPrint.reduce((total, file) => total + (file.pages ?? 1), 0) || 1;
+  const selectedPages = documentSettings.reduce((total, item, index) => total + parseRangeCount(item.settings.pageRange, filesToPrint[index]?.pages ?? 1), 0);
+  const totalPages = Math.max(1, documentSettings.reduce((total, item, index) => {
+    const selectedFilePages = parseRangeCount(item.settings.pageRange, filesToPrint[index]?.pages ?? 1);
+    return total + selectedFilePages * item.settings.copies;
+  }, 0));
+  const finalPrice = documentSettings.reduce((total, item, index) => {
+    const selectedFilePages = parseRangeCount(item.settings.pageRange, filesToPrint[index]?.pages ?? 1);
+    return total + calculatePrintPrice(selectedShop, item.settings, selectedFilePages * item.settings.copies);
+  }, 0);
+  const previewSlideWidth = Math.max(280, Math.min(width - Spacing.md * 4, 560));
+  const landscape = activeSettings.orientation === 'landscape';
+  const blackAndWhitePreview = activeSettings.color === 'bw'
     ? ({ filter: 'grayscale(1) contrast(1.08)' } as Record<string, string>)
     : undefined;
 
+  React.useEffect(() => {
+    if (activeFileIndex >= filesToPrint.length) {
+      setActiveFileIndex(Math.max(0, filesToPrint.length - 1));
+    }
+  }, [activeFileIndex, filesToPrint.length]);
+
+  React.useEffect(() => {
+    if (!filesToPrint.length) return;
+    setSettingsByFileId((current) => {
+      const next = { ...current };
+      for (const [index, file] of filesToPrint.entries()) {
+        const key = fileKey(file.id, index);
+        next[key] ??= { ...DEFAULT_PRINT_SETTINGS };
+      }
+      return next;
+    });
+  }, [filesToPrint]);
+
   const updateSetting = <K extends keyof PrintSettings>(key: K, value: PrintSettings[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettingsByFileId((current) => ({
+      ...current,
+      [activeFileKey]: {
+        ...(current[activeFileKey] ?? settings),
+        [key]: value,
+      },
+    }));
   };
 
   const adjustCopies = (delta: number) => {
-    setSettings(prev => ({
-      ...prev,
-      copies: Math.max(1, Math.min(PRINT_CONFIG.maxCopies, prev.copies + delta)),
+    setSettingsByFileId((current) => ({
+      ...current,
+      [activeFileKey]: {
+        ...(current[activeFileKey] ?? settings),
+        copies: Math.max(1, Math.min(PRINT_CONFIG.maxCopies, activeSettings.copies + delta)),
+      },
     }));
+  };
+
+  const goToFile = (index: number) => {
+    const nextIndex = Math.max(0, Math.min(filesToPrint.length - 1, index));
+    setActiveFileIndex(nextIndex);
+  };
+
+  const handleRemoveActiveFile = () => {
+    if (filesToPrint.length <= 1) {
+      router.back();
+      return;
+    }
+
+    const activeId = activeFile?.id;
+    const nextFiles = activeId
+      ? filesToPrint.filter((file) => file.id !== activeId)
+      : filesToPrint.filter((_, index) => index !== activeFileIndex);
+    setSelectedFiles(nextFiles);
+    requestAnimationFrame(() => goToFile(Math.min(activeFileIndex, nextFiles.length - 1)));
   };
 
   const handleSubmit = async () => {
     setSubmitError('');
-    if (!selectedFile || !selectedShop) {
-      setSubmitError('Please select a shop and file before generating OTP.');
+    if (!filesToPrint.length || !selectedShop) {
+      setSubmitError('Please select a shop and file before generating print code.');
       return;
     }
     if (!isLoaded) {
@@ -107,20 +193,37 @@ export default function PrintSettingsScreen() {
 
     setSubmitting(true);
     const payload: PrintSettings = {
-      ...settings,
+      ...documentSettings[0]?.settings,
       ...FIXED_DEFAULTS,
     };
+  const finalDocumentSettings = documentSettings.map((item) => ({
+      ...item,
+      pages: filesToPrint.find((file) => file.id === item.fileId)?.pages ?? 1,
+      settings: {
+        ...item.settings,
+        ...FIXED_DEFAULTS,
+      },
+    })).map((item) => ({
+      ...item,
+      chargeablePages: parseRangeCount(item.settings.pageRange, item.pages ?? 1) * item.settings.copies,
+      estimatedPrice: calculatePrintPrice(
+        selectedShop,
+        item.settings,
+        parseRangeCount(item.settings.pageRange, item.pages ?? 1) * item.settings.copies
+      ),
+    }));
+    const usedDefaultSettings = finalDocumentSettings.every((item) => isDefaultPrintSettings(item.settings));
     setPrintSettings(payload);
     try {
-      const job = await submitPrintJob(selectedFile, payload, selectedShop.id);
+      const job = await submitPrintJob(filesToPrint, payload, selectedShop.id, usedDefaultSettings, finalDocumentSettings);
       router.replace({ pathname: '/otp-success', params: { jobId: job.id } });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Could not generate OTP. Please try again.');
+      setSubmitError(err instanceof Error ? err.message : 'Could not generate print code. Please try again.');
       setSubmitting(false);
     }
   };
 
-  if (!selectedFile || !selectedShop) {
+  if (!filesToPrint.length || !selectedShop) {
     return (
       <View style={styles.emptyScreen}>
         <Ionicons name="alert-circle-outline" size={42} color={Colors.warning} />
@@ -149,56 +252,112 @@ export default function PrintSettingsScreen() {
         </View>
 
         <View style={styles.previewShell}>
-          <Pressable style={styles.removeBtn} onPress={() => router.back()}>
+          <Pressable style={styles.removeBtn} onPress={handleRemoveActiveFile}>
             <Ionicons name="close" size={18} color={Colors.textSecondary} />
           </Pressable>
 
-          <View style={[
-            styles.pagePreview,
-            landscape ? styles.pageLandscape : styles.pagePortrait,
-          ]}>
-            {isImageFile ? (
-              <Image
-                source={{ uri: selectedFile.uri }}
-                style={[
-                  styles.previewImage,
-                  landscape && styles.previewImageLandscape,
-                  blackAndWhitePreview,
-                ]}
-                resizeMode="contain"
-              />
-            ) : (
+          <View style={styles.previewTitleRow}>
+            <View style={styles.fileCounter}>
+              <Ionicons name="documents-outline" size={15} color={Colors.primaryLight} />
+              <Text style={styles.fileCounterText}>File {activeFileIndex + 1}/{filesToPrint.length}</Text>
+            </View>
+            <Text style={styles.previewFileName} numberOfLines={1}>{activeFile?.name ?? 'Document'}</Text>
+          </View>
+
+          <View style={[styles.previewCarousel, { width: previewSlideWidth }]}>
+            {filesToPrint.length > 1 ? (
+              <>
+                <Pressable
+                  onPress={() => goToFile(activeFileIndex - 1)}
+                  disabled={activeFileIndex === 0}
+                  style={[styles.navBtn, styles.navBtnLeft, activeFileIndex === 0 && styles.navBtnDisabled]}
+                >
+                  <Ionicons name="chevron-back" size={22} color={Colors.textPrimary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => goToFile(activeFileIndex + 1)}
+                  disabled={activeFileIndex === filesToPrint.length - 1}
+                  style={[styles.navBtn, styles.navBtnRight, activeFileIndex === filesToPrint.length - 1 && styles.navBtnDisabled]}
+                >
+                  <Ionicons name="chevron-forward" size={22} color={Colors.textPrimary} />
+                </Pressable>
+              </>
+            ) : null}
+            <View style={[styles.previewSlide, { width: previewSlideWidth }]}>
               <View style={[
-                styles.pdfPreview,
-                landscape && styles.pdfPreviewLandscape,
-                settings.color === 'bw' && styles.pdfPreviewBw,
+                styles.pagePreview,
+                landscape ? styles.pageLandscape : styles.pagePortrait,
               ]}>
-                <Ionicons name="document-text" size={52} color="#ef4444" />
-                <Text style={styles.pdfName} numberOfLines={2}>{selectedFile.name}</Text>
-                <Text style={styles.pdfMeta}>{formatFileSize(selectedFile.size)} - {filePages} page</Text>
+                {activeFile?.type.startsWith('image/') ? (
+                  <Image
+                    key={activeFile.id}
+                    source={{ uri: activeFile.uri }}
+                    style={[
+                      styles.previewImage,
+                      landscape && styles.previewImageLandscape,
+                      blackAndWhitePreview,
+                    ]}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={[
+                    styles.pdfPreview,
+                    landscape && styles.pdfPreviewLandscape,
+                    activeSettings.color === 'bw' && styles.pdfPreviewBw,
+                  ]}>
+                    <Ionicons name="document-text" size={52} color="#ef4444" />
+                    <Text style={styles.pdfName} numberOfLines={2}>{activeFile?.name ?? 'Document'}</Text>
+                    <Text style={styles.pdfMeta}>
+                      {formatFileSize(activeFile?.size ?? 0)} - {activeFilePages} page{activeFilePages !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
+            </View>
+          </View>
+
+          {filesToPrint.length > 1 ? (
+            <View style={styles.previewDots}>
+              {filesToPrint.map((file, index) => (
+                <Pressable
+                  key={file.id}
+                  onPress={() => goToFile(index)}
+                  style={[styles.previewDot, index === activeFileIndex && styles.previewDotActive]}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          <View style={styles.activeFileMeta}>
+            <Text style={styles.activeFileMetaText}>
+              {formatFileSize(activeFile?.size ?? 0)} - {activeFilePages} page{activeFilePages !== 1 ? 's' : ''}
+            </Text>
+            {filesToPrint.length > 1 ? (
+            <View style={styles.nextHint}>
+                <Text style={styles.nextHintText}>Tap Next</Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.previewMeta}>
-            <MetaPill icon="copy-outline" text={`${settings.copies} copy`} />
+            <MetaPill icon="copy-outline" text={`${activeSettings.copies} copy`} />
             <MetaPill icon="document-outline" text={`${selectedPages}/${filePages} pages`} />
             <MetaPill icon={landscape ? 'phone-landscape-outline' : 'phone-portrait-outline'} text={landscape ? 'Landscape' : 'Portrait'} />
-            <MetaPill icon={settings.color === 'color' ? 'color-palette-outline' : 'contrast-outline'} text={settings.color === 'color' ? 'Color' : 'B & W'} />
+            <MetaPill icon={activeSettings.color === 'color' ? 'color-palette-outline' : 'contrast-outline'} text={activeSettings.color === 'color' ? 'Color' : 'B & W'} />
           </View>
         </View>
 
         <View style={styles.copiesCard}>
           <View>
             <Text style={styles.cardTitle}>Number of copies</Text>
-            <Text style={styles.cardSub}>File 1 ({filePages} page{filePages !== 1 ? 's' : ''})</Text>
+            <Text style={styles.cardSub}>File {activeFileIndex + 1} ({activeFilePages} page{activeFilePages !== 1 ? 's' : ''})</Text>
           </View>
           <View style={styles.stepper}>
-            <Pressable onPress={() => adjustCopies(-1)} disabled={settings.copies <= 1} style={styles.stepperBtn}>
-              <Text style={[styles.stepperText, settings.copies <= 1 && styles.disabledText]}>-</Text>
+            <Pressable onPress={() => adjustCopies(-1)} disabled={activeSettings.copies <= 1} style={styles.stepperBtn}>
+              <Text style={[styles.stepperText, activeSettings.copies <= 1 && styles.disabledText]}>-</Text>
             </Pressable>
-            <Text style={styles.copyCount}>{settings.copies}</Text>
-            <Pressable onPress={() => adjustCopies(1)} disabled={settings.copies >= PRINT_CONFIG.maxCopies} style={styles.stepperBtn}>
+            <Text style={styles.copyCount}>{activeSettings.copies}</Text>
+            <Pressable onPress={() => adjustCopies(1)} disabled={activeSettings.copies >= PRINT_CONFIG.maxCopies} style={styles.stepperBtn}>
               <Text style={styles.stepperText}>+</Text>
             </Pressable>
           </View>
@@ -209,13 +368,13 @@ export default function PrintSettingsScreen() {
           <View style={styles.rangeRow}>
             <Pressable
               onPress={() => updateSetting('pageRange', 'All')}
-              style={[styles.rangeChip, settings.pageRange === 'All' && styles.rangeChipActive]}
+              style={[styles.rangeChip, activeSettings.pageRange === 'All' && styles.rangeChipActive]}
             >
-              <Text style={[styles.rangeChipText, settings.pageRange === 'All' && styles.activeText]}>All pages</Text>
+              <Text style={[styles.rangeChipText, activeSettings.pageRange === 'All' && styles.activeText]}>All pages</Text>
             </Pressable>
-            <View style={[styles.rangeInputWrap, settings.pageRange !== 'All' && styles.rangeInputActive]}>
+            <View style={[styles.rangeInputWrap, activeSettings.pageRange !== 'All' && styles.rangeInputActive]}>
               <TextInput
-                value={settings.pageRange === 'All' ? '' : settings.pageRange}
+                value={activeSettings.pageRange === 'All' ? '' : activeSettings.pageRange}
                 onChangeText={(value) => updateSetting('pageRange', value.trim() ? value : 'All')}
                 placeholder="e.g. 1-5, 8"
                 placeholderTextColor={Colors.textMuted}
@@ -230,7 +389,7 @@ export default function PrintSettingsScreen() {
               title="Coloured"
               subtitle={`Rs ${getShopPrintRate(selectedShop, 'color')}/page`}
               icon="color-palette"
-              selected={settings.color === 'color'}
+              selected={activeSettings.color === 'color'}
               onPress={() => updateSetting('color', 'color')}
               color="#f59e0b"
             />
@@ -238,7 +397,7 @@ export default function PrintSettingsScreen() {
               title="B & W"
               subtitle={`Rs ${getShopPrintRate(selectedShop, 'bw')}/page`}
               icon="contrast"
-              selected={settings.color === 'bw'}
+              selected={activeSettings.color === 'bw'}
               onPress={() => updateSetting('color', 'bw')}
               color={Colors.primaryLight}
             />
@@ -250,7 +409,7 @@ export default function PrintSettingsScreen() {
               title="Portrait"
               subtitle="8.3 x 11.7 in"
               icon="phone-portrait"
-              selected={settings.orientation === 'portrait'}
+              selected={activeSettings.orientation === 'portrait'}
               onPress={() => updateSetting('orientation', 'portrait')}
               color={Colors.info}
             />
@@ -258,7 +417,7 @@ export default function PrintSettingsScreen() {
               title="Landscape"
               subtitle="11.7 x 8.3 in"
               icon="phone-landscape"
-              selected={settings.orientation === 'landscape'}
+              selected={activeSettings.orientation === 'landscape'}
               onPress={() => updateSetting('orientation', 'landscape')}
               color={Colors.info}
             />
@@ -296,7 +455,7 @@ export default function PrintSettingsScreen() {
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.generateText}>{isLoaded ? 'Generate OTP' : 'Please wait...'}</Text>
+            <Text style={styles.generateText}>{isLoaded ? 'Generate Print Code' : 'Please wait...'}</Text>
           )}
         </Pressable>
       </View>
@@ -451,6 +610,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  previewTitleRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingRight: 42,
+  },
+  fileCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Colors.borderFocus,
+    backgroundColor: 'rgba(99,102,241,0.14)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  fileCounterText: {
+    color: Colors.primaryLight,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
+  previewFileName: {
+    flex: 1,
+    minWidth: 0,
+    color: Colors.textPrimary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
+  },
+  previewCarousel: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewSlide: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBtn: {
+    position: 'absolute',
+    top: '46%',
+    zIndex: 3,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: 'rgba(15,23,42,0.76)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBtnLeft: {
+    left: 8,
+  },
+  navBtnRight: {
+    right: 8,
+  },
+  navBtnDisabled: {
+    opacity: 0.28,
+  },
   pagePreview: {
     borderRadius: Radius.sm,
     borderWidth: 1,
@@ -500,6 +720,45 @@ const styles = StyleSheet.create({
   pdfMeta: {
     color: '#64748b',
     fontSize: FontSize.sm,
+  },
+  previewDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  previewDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.border,
+  },
+  previewDotActive: {
+    width: 22,
+    backgroundColor: Colors.primaryLight,
+  },
+  activeFileMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  activeFileMetaText: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  nextHint: {
+    borderRadius: Radius.full,
+    backgroundColor: Colors.bgSurface,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  nextHintText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
   },
   previewMeta: {
     flexDirection: 'row',

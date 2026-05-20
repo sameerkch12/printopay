@@ -50,6 +50,7 @@ export const updateShopApproval = asyncHandler(async (req: Request, res: Respons
 export const listAdminPrintJobs = asyncHandler(async (_req: Request, res: Response) => {
   const jobs = await PrintJob.find()
     .populate('document')
+    .populate('documents')
     .populate('shop')
     .sort({ createdAt: -1 })
     .limit(200);

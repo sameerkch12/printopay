@@ -29,6 +29,33 @@ export const requireAuth = asyncHandler(async (req, _res, next) => {
   next();
 });
 
+export const optionalAuth = asyncHandler(async (req, _res, next) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    const payload = verifyToken(token);
+    const user = await User.findById(payload.sub);
+
+    if (user?.isActive) {
+      req.auth = {
+        userId: user._id.toString(),
+        role: user.role as AuthRole,
+        shopId: user.shop?.toString(),
+      };
+    }
+  } catch {
+    // Client error logs should still be accepted when a session is stale.
+  }
+
+  next();
+});
+
 export function requireRole(...roles: AuthRole[]): RequestHandler {
   return (req, _res, next) => {
     if (!req.auth || !roles.includes(req.auth.role)) {

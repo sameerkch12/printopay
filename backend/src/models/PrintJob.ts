@@ -26,13 +26,42 @@ const statusHistorySchema = new Schema(
   { _id: false }
 );
 
+const documentPrintSettingsSchema = new Schema(
+  {
+    document: { type: Types.ObjectId, ref: 'DocumentAsset', required: true },
+    fileName: { type: String, trim: true },
+    pages: { type: Number, min: 1 },
+    chargeablePages: { type: Number, min: 1 },
+    estimatedPrice: { type: Number, min: 0 },
+    settings: { type: printSettingsSchema, required: true },
+  },
+  { _id: false }
+);
+
 const printJobSchema = new Schema(
   {
     jobNumber: { type: String, required: true, unique: true },
-    document: { type: Types.ObjectId, ref: 'DocumentAsset', required: true },
+    document: { type: Types.ObjectId, ref: 'DocumentAsset' },
+    documents: {
+      type: [{ type: Types.ObjectId, ref: 'DocumentAsset' }],
+      default: [],
+      validate: {
+        validator: (value: Types.ObjectId[]) => value.length <= 10,
+        message: 'A print job can have at most 10 documents',
+      },
+    },
     shop: { type: Types.ObjectId, ref: 'Shop', required: true },
     userId: { type: String, trim: true },
     settings: { type: printSettingsSchema, required: true },
+    documentSettings: {
+      type: [documentPrintSettingsSchema],
+      default: [],
+      validate: {
+        validator: (value: unknown[]) => value.length <= 10,
+        message: 'A print job can have at most 10 document settings',
+      },
+    },
+    usedDefaultSettings: { type: Boolean, default: false },
     otpHash: { type: String, required: true },
     otpExpiresAt: { type: Date, required: true },
     status: {
@@ -41,6 +70,7 @@ const printJobSchema = new Schema(
       default: 'pending',
     },
     estimatedPages: { type: Number, required: true, min: 1 },
+    estimatedPrice: { type: Number, min: 0 },
     statusHistory: { type: [statusHistorySchema], default: [] },
   },
   { timestamps: true }

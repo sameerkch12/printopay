@@ -74,7 +74,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Good morning 👋</Text>
-          <Text style={styles.headerTitle}>PrintSecure</Text>
+          <Text style={styles.headerTitle}>PrintoPay</Text>
         </View>
         <View style={styles.headerActions}>
           <Pressable
@@ -172,7 +172,7 @@ export default function HomeScreen() {
             { step: '1', icon: 'qr-code-outline', title: 'Scan QR', desc: 'Scan shop QR code', color: Colors.primary },
             { step: '2', icon: 'cloud-upload-outline', title: 'Upload', desc: 'Upload your document', color: Colors.accent },
             { step: '3', icon: 'options-outline', title: 'Configure', desc: 'Set print settings', color: Colors.warning },
-            { step: '4', icon: 'key-outline', title: 'Get OTP', desc: 'Share OTP at shop', color: Colors.success },
+            { step: '4', icon: 'key-outline', title: 'Get Code', desc: 'Share print code at shop', color: Colors.success },
           ].map((item) => (
             <GlassCard key={item.step} style={styles.stepCard} padding={12}>
               <LinearGradient
@@ -199,7 +199,7 @@ export default function HomeScreen() {
           {[
             'Files expire automatically after 24 hours',
             'Shop owner cannot download your file',
-            'OTP required for every print job',
+            'Print code required for every print job',
             'Secure signed URLs only',
             'All actions logged & audited',
           ].map((feat, idx) => (

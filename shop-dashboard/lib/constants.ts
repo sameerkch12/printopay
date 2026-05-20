@@ -1,6 +1,6 @@
 import { PrintStatus } from './api';
 
-export const TOKEN_KEY = 'printtary_shop_token';
+export const TOKEN_KEY = 'printopay_shop_token';
 
 export const statusMeta: Record<
   PrintStatus,

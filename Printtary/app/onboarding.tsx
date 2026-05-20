@@ -40,8 +40,8 @@ const SLIDES = [
   },
   {
     id: '3',
-    title: 'Secure 4-Digit\nOTP Access',
-    subtitle: 'Your file expires in 24 hours. Shop owner needs your OTP to print — total security.',
+    title: 'Secure 4-Digit\nPrint Code',
+    subtitle: 'Your file expires in 24 hours. Shop owner needs your print code to print with your approval.',
     icon: 'key',
     color: '#22c55e',
     accent: '#3b82f6',
@@ -94,7 +94,7 @@ export default function OnboardingScreen() {
         >
           <Ionicons name="shield-checkmark" size={18} color="#fff" />
         </LinearGradient>
-        <Text style={styles.logoText}>PrintSecure</Text>
+        <Text style={styles.logoText}>PrintoPay</Text>
       </View>
 
       {/* Skip */}

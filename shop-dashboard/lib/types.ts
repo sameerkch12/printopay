@@ -14,7 +14,6 @@ export type PrintJob = {
   status: PrintStatus;
   createdAt: string;
   otpExpiresAt: string;
-  signedUrl?: string;
 };
 
 export type ShopProfile = {

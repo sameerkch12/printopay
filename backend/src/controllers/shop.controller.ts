@@ -27,6 +27,8 @@ function distanceKm(from: { latitude: number; longitude: number }, to: { latitud
   return radiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const nearbyRadiusKm = 10;
+
 export const listShops = asyncHandler(async (req: Request, res: Response) => {
   const shops = await Shop.find({ isActive: true, approvalStatus: 'approved' }).sort({ createdAt: -1 });
   const latitude = Number(req.query.lat);
@@ -45,6 +47,7 @@ export const listShops = asyncHandler(async (req: Request, res: Response) => {
           distanceKm: hasLocation ? distanceKm(current, { latitude: shopLatitude, longitude: shopLongitude }) : undefined,
         };
       })
+      .filter((shop) => typeof shop.distanceKm === 'number' && shop.distanceKm <= nearbyRadiusKm)
       .sort((a, b) => (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY));
 
     return sendSuccess(res, withDistance);
@@ -68,6 +71,7 @@ export const getShopByQrCode = asyncHandler(async (req: Request, res: Response) 
   const shop = await Shop.findOne({
     $or: [
       { qrCode: code },
+      { qrCode: `printopay://shop/${code}` },
       { qrCode: `printtary://shop/${code}` },
     ],
     isActive: true,

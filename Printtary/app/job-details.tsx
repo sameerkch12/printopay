@@ -64,11 +64,11 @@ export default function JobDetailsScreen() {
           <Badge label={getStatusLabel(job.status)} color={statusColor} />
         </LinearGradient>
 
-        {/* OTP Card */}
+        {/* Print code card */}
         <GlassCard variant="glow" gradient>
           <View style={styles.otpRow}>
             <View>
-              <Text style={styles.otpLabel}>Print OTP</Text>
+              <Text style={styles.otpLabel}>Print Code</Text>
               <Text style={styles.otpHint}>Show at shop counter</Text>
             </View>
             <View style={styles.otpValueRow}>
@@ -235,8 +235,8 @@ function getStatusIcon(status: string): any {
 
 function getStatusMessage(status: string): string {
   const map: Record<string, string> = {
-    pending: 'Waiting for OTP verification at the shop',
-    processing: 'OTP verified, preparing your document',
+    pending: 'Waiting for print code verification at the shop',
+    processing: 'Print code verified, preparing your document',
     printing: 'Your document is being printed right now',
     completed: 'Print job completed successfully',
     failed: 'Print job failed — contact the shop',

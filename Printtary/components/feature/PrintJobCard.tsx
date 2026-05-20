@@ -80,7 +80,7 @@ export function PrintJobCard({ job }: PrintJobCardProps) {
           <Text style={styles.date}>{formatDate(job.createdAt)}</Text>
           <View style={[styles.otpBadge, { borderColor: statusColor }]}>
             <Ionicons name="keypad" size={10} color={statusColor} />
-            <Text style={[styles.otpText, { color: statusColor }]}>OTP: {job.otp}</Text>
+            <Text style={[styles.otpText, { color: statusColor }]}>Code: {job.otp}</Text>
           </View>
         </View>
 

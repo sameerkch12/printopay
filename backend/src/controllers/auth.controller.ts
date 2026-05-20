@@ -35,7 +35,7 @@ export const registerShopOwner = asyncHandler(async (req: Request, res: Response
 
   const shop = await Shop.create({
     ...req.body.shop,
-    qrCode: `printtary://shop/${crypto.randomUUID()}`,
+    qrCode: `printopay://shop/${crypto.randomUUID()}`,
     isActive: false,
     approvalStatus: 'pending',
   });

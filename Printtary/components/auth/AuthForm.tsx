@@ -160,7 +160,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <Text style={styles.subtitle}>
           {pendingVerification
             ? 'Enter the verification code sent to your email.'
-            : 'Sign in before generating OTP so your print jobs stay linked to you.'}
+            : 'Sign in before generating a print code so your print jobs stay linked to you.'}
         </Text>
 
         {!pendingVerification ? (

@@ -39,21 +39,35 @@ export type DocumentAsset = {
   expiresAt: string;
 };
 
+export type PrintSettings = {
+  color: 'bw' | 'color';
+  copies: number;
+  pageRange: string;
+  orientation: 'portrait' | 'landscape';
+  sides: 'single' | 'double';
+  paperSize: string;
+};
+
 export type PrintJob = {
   _id: string;
   jobNumber: string;
   document: DocumentAsset;
+  documents?: DocumentAsset[];
   shop: Shop;
-  settings: {
-    color: 'bw' | 'color';
-    copies: number;
-    pageRange: string;
-    orientation: 'portrait' | 'landscape';
-    sides: 'single' | 'double';
-    paperSize: string;
-  };
+  settings: PrintSettings;
+  documentSettings?: {
+    document?: string | DocumentAsset;
+    documentId?: string;
+    fileName?: string;
+    pages?: number;
+    chargeablePages?: number;
+    estimatedPrice?: number;
+    settings: PrintSettings;
+  }[];
+  usedDefaultSettings?: boolean;
   status: PrintStatus;
   estimatedPages: number;
+  estimatedPrice?: number;
   otpExpiresAt: string;
   createdAt: string;
 };
@@ -145,7 +159,7 @@ export function listMyShopJobs(token: string) {
 }
 
 export function verifyOtp(token: string, jobId: string, otp: string) {
-  return request<{ printJob: PrintJob; signedUrl: string; printUrl: string }>(`/print-jobs/${jobId}/verify-otp`, {
+  return request<{ printJob: PrintJob; printUrl: string; printUrls?: { documentId: string; url: string }[] }>(`/print-jobs/${jobId}/verify-otp`, {
     method: 'POST',
     token,
     body: JSON.stringify({ otp }),
@@ -153,7 +167,7 @@ export function verifyOtp(token: string, jobId: string, otp: string) {
 }
 
 export function verifyShopOtp(token: string, otp: string) {
-  return request<{ printJob: PrintJob; signedUrl: string; printUrl: string }>('/print-jobs/verify-otp', {
+  return request<{ printJob: PrintJob; printUrl: string; printUrls?: { documentId: string; url: string }[] }>('/print-jobs/verify-otp', {
     method: 'POST',
     token,
     body: JSON.stringify({ otp }),
@@ -222,6 +236,27 @@ export function listAdminJobs(token: string) {
 
 export function listAdminUsers(token: string) {
   return request<User[]>('/admin/users', { token });
+}
+
+export function reportClientError(input: {
+  message: string;
+  stack?: string;
+  path?: string;
+  severity?: 'info' | 'warning' | 'error' | 'fatal';
+  metadata?: unknown;
+}, token?: string) {
+  return request<{ logged: boolean }>('/errors/client', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      source: 'shop_dashboard',
+      severity: input.severity ?? 'error',
+      message: input.message,
+      stack: input.stack,
+      path: input.path,
+      metadata: input.metadata,
+    }),
+  });
 }
 
 export function formatBytes(bytes: number) {

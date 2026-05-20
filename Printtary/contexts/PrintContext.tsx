@@ -1,9 +1,10 @@
 import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '@clerk/expo';
-import { PrintJob, PrintSettings, UploadedFile, Shop } from '@/types';
+import { DocumentPrintSettings, PrintJob, PrintSettings, UploadedFile, Shop } from '@/types';
 import { fetchJobStatus, uploadDocument } from '@/services/printService';
 import { getRealtimeSocket } from '@/services/realtime';
+import { PRINT_CONFIG } from '@/constants/config';
 
 interface PrintContextType {
   // Current flow state
@@ -11,6 +12,8 @@ interface PrintContextType {
   setSelectedShop: (shop: Shop | null) => void;
   selectedFile: UploadedFile | null;
   setSelectedFile: (file: UploadedFile | null) => void;
+  selectedFiles: UploadedFile[];
+  setSelectedFiles: (files: UploadedFile[]) => void;
   printSettings: PrintSettings;
   setPrintSettings: (settings: PrintSettings) => void;
   currentJob: PrintJob | null;
@@ -24,9 +27,11 @@ interface PrintContextType {
   isUploading: boolean;
   uploadProgress: number;
   submitPrintJob: (
-    file: UploadedFile,
+    file: UploadedFile | UploadedFile[],
     settings: PrintSettings,
-    shopId: string
+    shopId: string,
+    usedDefaultSettings?: boolean,
+    documentSettings?: DocumentPrintSettings[]
   ) => Promise<PrintJob>;
 
   // Reset
@@ -35,16 +40,9 @@ interface PrintContextType {
 
 export const PrintContext = createContext<PrintContextType | undefined>(undefined);
 
-const DEFAULT_SETTINGS: PrintSettings = {
-  color: 'bw',
-  copies: 1,
-  pageRange: 'All',
-  orientation: 'portrait',
-  sides: 'single',
-  paperSize: 'A4',
-};
+const DEFAULT_SETTINGS = PRINT_CONFIG.defaultSettings as PrintSettings;
 
-const HISTORY_KEY_PREFIX = 'printtary:job-history';
+const HISTORY_KEY_PREFIX = 'printopay:job-history';
 
 function reviveDate(value?: string | Date) {
   return value ? new Date(value) : new Date();
@@ -60,6 +58,11 @@ function reviveJob(raw: PrintJob): PrintJob {
       uploadedAt: reviveDate(raw.file.uploadedAt),
       expiresAt: raw.file.expiresAt ? reviveDate(raw.file.expiresAt) : undefined,
     },
+    files: raw.files?.map((file) => ({
+      ...file,
+      uploadedAt: reviveDate(file.uploadedAt),
+      expiresAt: file.expiresAt ? reviveDate(file.expiresAt) : undefined,
+    })),
     statusHistory: raw.statusHistory?.map((entry) => ({
       ...entry,
       timestamp: reviveDate(entry.timestamp),
@@ -72,6 +75,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   const userId = user?.id;
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
+  const [selectedFiles, setSelectedFilesState] = useState<UploadedFile[]>([]);
   const [printSettings, setPrintSettings] = useState<PrintSettings>(DEFAULT_SETTINGS);
   const [currentJob, setCurrentJob] = useState<PrintJob | null>(null);
   const [jobHistory, setJobHistory] = useState<PrintJob[]>([]);
@@ -81,6 +85,11 @@ export function PrintProvider({ children }: { children: ReactNode }) {
 
   const addJobToHistory = useCallback((job: PrintJob) => {
     setJobHistory(prev => [job, ...prev.filter(item => item.id !== job.id)]);
+  }, []);
+
+  const setSelectedFiles = useCallback((files: UploadedFile[]) => {
+    setSelectedFilesState(files);
+    setSelectedFile(files[0] ?? null);
   }, []);
 
   useEffect(() => {
@@ -145,14 +154,16 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   }, [refreshJob]);
 
   const submitPrintJob = useCallback(async (
-    file: UploadedFile,
+    file: UploadedFile | UploadedFile[],
     settings: PrintSettings,
-    shopId: string
+    shopId: string,
+    usedDefaultSettings?: boolean,
+    documentSettings?: DocumentPrintSettings[]
   ): Promise<PrintJob> => {
     setIsUploading(true);
     setUploadProgress(0);
     try {
-      const job = await uploadDocument(file, settings, shopId, (p) => {
+      const job = await uploadDocument(file, settings, shopId, usedDefaultSettings, documentSettings, (p) => {
         setUploadProgress(p);
       });
       setCurrentJob(job);
@@ -166,6 +177,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   const resetFlow = useCallback(() => {
     setSelectedShop(null);
     setSelectedFile(null);
+    setSelectedFilesState([]);
     setPrintSettings(DEFAULT_SETTINGS);
     setCurrentJob(null);
     setUploadProgress(0);
@@ -178,6 +190,8 @@ export function PrintProvider({ children }: { children: ReactNode }) {
       setSelectedShop,
       selectedFile,
       setSelectedFile,
+      selectedFiles,
+      setSelectedFiles,
       printSettings,
       setPrintSettings,
       currentJob,

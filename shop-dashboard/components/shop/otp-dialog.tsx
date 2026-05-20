@@ -21,13 +21,13 @@ export function OtpDialog({
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Verify Print OTP</DialogTitle>
+        <DialogTitle>Verify Print Code</DialogTitle>
         <DialogDescription>
-          Enter the customer OTP for {selectedJob?.jobNumber ?? 'selected job'}.
+          Enter the customer print code for {selectedJob?.jobNumber ?? 'selected job'}.
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-3">
-        <Label htmlFor="otp">OTP</Label>
+        <Label htmlFor="otp">Print Code</Label>
         <Input
           id="otp"
           value={otp}

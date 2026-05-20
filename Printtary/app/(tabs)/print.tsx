@@ -31,7 +31,7 @@ export default function PrintScreen() {
   const [loading, setLoading] = useState(true);
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [locationMessage, setLocationMessage] = useState('Showing all approved shops. Tap Find Nearby Shops to sort by distance.');
+  const [locationMessage, setLocationMessage] = useState('Showing all approved shops. Tap Find Nearby Shops to show shops within 10 km.');
 
   useEffect(() => {
     let mounted = true;
@@ -42,7 +42,7 @@ export default function PrintScreen() {
         const data = await fetchAllShops();
         if (!mounted) return;
         setShops(data);
-        setLocationMessage('Showing all approved shops. Tap Find Nearby Shops to sort by distance.');
+        setLocationMessage('Showing all approved shops. Tap Find Nearby Shops to show shops within 10 km.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -68,7 +68,7 @@ export default function PrintScreen() {
         const data = await fetchAllShops();
         if (mounted) {
           setShops(data);
-          setLocationMessage('Showing all approved shops. Tap Find Nearby Shops to sort by distance.');
+          setLocationMessage('Showing all approved shops. Tap Find Nearby Shops to show shops within 10 km.');
         }
       } catch {
         if (mounted) setLocationMessage('Could not load shops. Please try again.');
@@ -104,7 +104,7 @@ export default function PrintScreen() {
         longitude: position.coords.longitude,
       });
       setShops(data);
-      setLocationMessage('Sorted by nearest approved shops.');
+      setLocationMessage(data.length ? 'Showing approved shops within 10 km.' : 'No approved shops found within 10 km.');
     } catch {
       setLocationMessage('Could not find nearby shops. Showing all approved shops.');
     } finally {
@@ -139,7 +139,7 @@ export default function PrintScreen() {
 
       {/* Steps indicator */}
       <View style={styles.stepsBar}>
-        {['Select Shop', 'Upload File', 'Settings', 'Get OTP'].map((step, idx) => (
+        {['Select Shop', 'Upload File', 'Settings', 'Get Code'].map((step, idx) => (
           <React.Fragment key={step}>
             <View style={styles.stepItem}>
               <View style={[styles.stepDot, idx === 0 && styles.stepDotActive]}>

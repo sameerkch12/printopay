@@ -18,7 +18,7 @@ const documentAssetSchema = new Schema(
 );
 
 documentAssetSchema.index({ uploadedBy: 1, createdAt: -1 });
-documentAssetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+documentAssetSchema.index({ expiresAt: 1 });
 
 export type DocumentAssetDocument = InferSchemaType<typeof documentAssetSchema>;
 export const DocumentAsset = model('DocumentAsset', documentAssetSchema);

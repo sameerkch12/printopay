@@ -144,16 +144,16 @@ export function AuthScreen({ onAuth }: { onAuth: (payload: AuthPayload) => void 
         <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-r from-primary to-accent shadow-[0_0_28px_rgba(99,102,241,0.45)]">
           <Printer className="h-7 w-7" />
         </div>
-        <h1 className="mt-6 text-4xl font-extrabold tracking-tight">Printtary Shop Console</h1>
+        <h1 className="mt-6 text-4xl font-extrabold tracking-tight">PrintoPay Shop Console</h1>
         <p className="mt-3 max-w-md text-secondary">
-          Secure print operations for shop owners: register your shop, verify OTPs, preview authorized files, and manage every print job from one place.
+          Accept customer print jobs with confidence. Verify the print code, review customer settings, and print only when everything is clear.
         </p>
         <div className="mt-8 grid gap-3 text-sm text-secondary">
           {[
-            'No demo jobs or local fake data',
-            'JWT protected shop-owner and admin access',
-            'Cloudinary signed document preview after OTP',
-            'Admin visibility across shops, users, jobs, and documents',
+            'Your shop gets a QR poster customers can scan directly',
+            'Every document opens only after customer print code approval',
+            'See copies, color, page range, and paper settings before printing',
+            'Manage your queue, rates, and shop profile from one dashboard',
           ].map((item) => (
             <div key={item} className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-success" />

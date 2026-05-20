@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Printtary",
-    "slug": "Printtary",
+    "name": "PrintoPay",
+    "slug": "printopay",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "printtary",
+    "scheme": "printopay",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Hourglass, XCircle } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
 import { OtpPrintPanel } from '@/components/jobs/job-details';
 import { JobsCard } from '@/components/jobs/jobs-card';
-import { Sidebar } from '@/components/layout/sidebar';
+import { Sidebar, ShopView } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
 import { MetricCard } from '@/components/shared/metric-card';
 import {
+  DocumentAsset,
   listMyShopJobs,
   PrintJob,
+  PrintSettings,
   Shop,
   updateJobStatus,
   User,
@@ -17,6 +20,7 @@ import {
 } from '@/lib/api';
 import { getRealtimeSocket } from '@/lib/realtime';
 import { ShopProfile } from './shop-profile';
+import { QrPoster } from './qr-poster';
 
 function escapeHtml(value: string) {
   return value
@@ -27,9 +31,10 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#039;');
 }
 
-async function openPrintWindow(url: string, job: PrintJob) {
-  const mimeType = job.document?.mimeType;
-  const fileName = job.document?.originalName ?? 'Document';
+async function openPrintWindow(url: string, job: PrintJob, document?: DocumentAsset, settings?: PrintSettings) {
+  const mimeType = document?.mimeType ?? job.document?.mimeType;
+  const fileName = document?.originalName ?? job.document?.originalName ?? 'Document';
+  const printSettings = settings ?? job.settings;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error('Document load nahi hua');
@@ -46,8 +51,8 @@ async function openPrintWindow(url: string, job: PrintJob) {
       return;
     }
 
-    const copies = Math.max(1, Math.min(job.settings?.copies ?? 1, 50));
-    const orientation = job.settings?.orientation === 'landscape' ? 'landscape' : 'portrait';
+    const copies = Math.max(1, Math.min(printSettings?.copies ?? 1, 50));
+    const orientation = printSettings?.orientation === 'landscape' ? 'landscape' : 'portrait';
     const pages = Array.from({ length: copies }, (_, index) => `
       <section class="page">
         <img src="${blobUrl}" alt="${escapeHtml(fileName)} copy ${index + 1}" />
@@ -114,6 +119,20 @@ async function openPrintWindow(url: string, job: PrintJob) {
   }, { once: true });
 }
 
+function documentIdOf(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value !== null && '_id' in value) return String(value._id);
+  return '';
+}
+
+function getDocumentSettings(job: PrintJob, documentId: string, index: number) {
+  return (
+    job.documentSettings?.find((item) => item.documentId === documentId || documentIdOf(item.document) === documentId)?.settings ??
+    job.documentSettings?.[index]?.settings ??
+    job.settings
+  );
+}
+
 export function ShopOwnerDashboard({
   token,
   user,
@@ -125,23 +144,47 @@ export function ShopOwnerDashboard({
   shop: Shop | null;
   onLogout: () => void;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const [jobs, setJobs] = useState<PrintJob[]>([]);
   const [query, setQuery] = useState('');
   const [otp, setOtp] = useState('');
   const [message, setMessage] = useState('');
   const [printMessage, setPrintMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [view, setView] = useState<'dashboard' | 'profile'>('dashboard');
+  const [printingDocumentId, setPrintingDocumentId] = useState<string>();
+  const [printedDocumentIds, setPrintedDocumentIds] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<ShopView>('dashboard');
   const [currentShop, setCurrentShop] = useState(shop);
   const [verifiedPrint, setVerifiedPrint] = useState<{
     job: PrintJob;
     printUrl: string;
+    printUrls?: { documentId: string; url: string }[];
   } | null>(null);
   const shopApproved = currentShop?.approvalStatus === 'approved' && currentShop.isActive;
 
   useEffect(() => {
     setCurrentShop(shop);
   }, [shop]);
+
+  useEffect(() => {
+    if (pathname.endsWith('/qr')) {
+      setView('qr');
+      return;
+    }
+
+    if (pathname.endsWith('/profile')) {
+      setView('profile');
+      return;
+    }
+
+    setView('dashboard');
+  }, [pathname]);
+
+  const handleViewChange = (nextView: ShopView) => {
+    setView(nextView);
+    router.push(nextView === 'dashboard' ? '/shop' : `/shop/${nextView}`);
+  };
 
   const loadJobs = useCallback(async () => {
     const data = await listMyShopJobs(token);
@@ -184,6 +227,8 @@ export function ShopOwnerDashboard({
     setOtp('');
     setMessage('');
     setPrintMessage('');
+    setPrintingDocumentId(undefined);
+    setPrintedDocumentIds(new Set());
     setVerifiedPrint(null);
   }, []);
 
@@ -191,50 +236,84 @@ export function ShopOwnerDashboard({
     if (!shopApproved || otp.length !== 4) return;
     setBusy(true);
     setMessage('');
-    setPrintMessage('OTP verify ho raha hai...');
+    setPrintMessage('Print code verify ho raha hai...');
     try {
       const data = await verifyShopOtp(token, otp);
       await loadJobs();
-      setVerifiedPrint({ job: data.printJob, printUrl: data.printUrl });
-      setMessage(`OTP verified for ${data.printJob.jobNumber}. Review settings, then print.`);
-      setPrintMessage('OTP verified. Customer settings are shown below.');
+      setVerifiedPrint({ job: data.printJob, printUrl: data.printUrl, printUrls: data.printUrls });
+      setPrintingDocumentId(undefined);
+      setPrintedDocumentIds(new Set());
+      setMessage(`Print code verified for ${data.printJob.jobNumber}. Review settings, then print.`);
+      setPrintMessage('Print code verified. Customer settings are shown below.');
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'OTP verification failed');
+      setMessage(err instanceof Error ? err.message : 'Print code verification failed');
       setPrintMessage('');
     } finally {
       setBusy(false);
     }
   };
 
-  const handlePrintVerified = async () => {
+  const handlePrintVerified = async (documentId: string, index: number) => {
     if (!verifiedPrint) return;
+    const documents = verifiedPrint.job.documents?.length ? verifiedPrint.job.documents : [verifiedPrint.job.document];
+    const document = documents.find((item) => item._id === documentId) ?? documents[index];
+    const printUrl =
+      verifiedPrint.printUrls?.find((item) => item.documentId === documentId)?.url ??
+      verifiedPrint.printUrls?.[index]?.url ??
+      (index === 0 ? verifiedPrint.printUrl : undefined);
+
+    if (!document || !printUrl) {
+      setMessage('Is file ka print URL nahi mila. Print code dobara verify karein.');
+      return;
+    }
+
     setBusy(true);
+    setPrintingDocumentId(documentId);
     setMessage('');
-    setPrintMessage('Document open ho raha hai. Please wait...');
+    setPrintMessage(`${document.originalName ?? `File ${index + 1}`} open ho raha hai. Please wait...`);
     try {
-      await openPrintWindow(verifiedPrint.printUrl, verifiedPrint.job);
-      await updateJobStatus(token, verifiedPrint.job._id, 'completed');
-      await loadJobs();
-      setMessage(`Print opened for ${verifiedPrint.job.jobNumber}.`);
+      await openPrintWindow(printUrl, verifiedPrint.job, document, getDocumentSettings(verifiedPrint.job, documentId, index));
+      const nextPrintedDocumentIds = new Set(printedDocumentIds);
+      nextPrintedDocumentIds.add(documentId);
+      setPrintedDocumentIds(nextPrintedDocumentIds);
+
+      if (documents.every((item) => nextPrintedDocumentIds.has(item._id))) {
+        await updateJobStatus(token, verifiedPrint.job._id, 'completed');
+        await loadJobs();
+        setMessage(`All files opened for ${verifiedPrint.job.jobNumber}.`);
+      } else {
+        setMessage(`Print opened for ${document.originalName ?? `File ${index + 1}`}.`);
+      }
       setPrintMessage('');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Could not open document');
       setPrintMessage('');
     } finally {
       setBusy(false);
+      setPrintingDocumentId(undefined);
     }
   };
 
   return (
     <div className="mx-auto grid max-w-[1440px] gap-5 lg:grid-cols-[260px_1fr]">
-      <Sidebar user={user} shop={currentShop} onLogout={onLogout} activeView={view} onViewChange={setView} />
+      <Sidebar user={user} shop={currentShop} onLogout={onLogout} activeView={view} onViewChange={handleViewChange} />
       <section className="grid gap-5">
         <TopBar
-          title={view === 'profile' ? 'Shop Profile' : 'Shop Owner Dashboard'}
-          subtitle={view === 'profile' ? 'Edit your shop details, rates, and public photo.' : shopApproved ? 'Enter customer OTP and print the matched document.' : 'Your shop is waiting for admin approval.'}
+          title={view === 'profile' ? 'Shop Profile' : view === 'qr' ? 'QR Code Poster' : 'Shop Owner Dashboard'}
+          subtitle={
+            view === 'profile'
+              ? 'Edit your shop details, rates, and public photo.'
+              : view === 'qr'
+                ? 'Print or save your customer scan poster.'
+                : shopApproved
+                  ? 'Enter customer print code and print the matched document.'
+                  : 'Your shop is waiting for admin approval.'
+          }
         />
         {view === 'profile' && currentShop ? (
           <ShopProfile token={token} shop={currentShop} onShopUpdated={setCurrentShop} />
+        ) : view === 'qr' && currentShop ? (
+          <QrPoster shop={currentShop} />
         ) : !shopApproved ? (
           <div className="rounded-[24px] border border-border bg-card p-8 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
             <div className="flex max-w-2xl flex-col gap-4">
@@ -248,7 +327,7 @@ export function ShopOwnerDashboard({
                 <p className="mt-2 text-secondary">
                   {currentShop?.approvalStatus === 'rejected'
                     ? 'Your shop is not live right now. Please contact the admin before accepting print jobs.'
-                    : 'Your registration is submitted. Once admin approves the shop, OTP verification and print queue will be available here.'}
+                    : 'Your registration is submitted. Once admin approves the shop, print code verification and print queue will be available here.'}
                 </p>
               </div>
               <div className="grid gap-3 rounded-[16px] border border-border bg-surface p-4 text-sm text-secondary sm:grid-cols-2">
@@ -260,7 +339,7 @@ export function ShopOwnerDashboard({
         ) : (
           <>
         <div className="grid gap-4 md:grid-cols-2">
-          <MetricCard icon={Clock3} label="Pending OTP" value={pending} tone="warning" />
+          <MetricCard icon={Clock3} label="Pending Code" value={pending} tone="warning" />
           <MetricCard icon={CheckCircle2} label="Successful Print" value={successful} tone="success" />
         </div>
         {message ? <p className="rounded-[14px] border border-border bg-card p-3 text-sm text-secondary">{message}</p> : null}
@@ -272,11 +351,14 @@ export function ShopOwnerDashboard({
               setOtp(value);
               setVerifiedPrint(null);
               setPrintMessage('');
+              setPrintingDocumentId(undefined);
+              setPrintedDocumentIds(new Set());
             }}
             printMessage={printMessage}
             verifiedJob={verifiedPrint?.job ?? null}
             onVerifyOtp={handleVerifyOtp}
             onPrint={handlePrintVerified}
+            printingDocumentId={printingDocumentId}
           />
           <JobsCard jobs={filtered} query={query} setQuery={setQuery} />
         </div>

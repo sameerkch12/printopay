@@ -1,4 +1,4 @@
-// PrintSecure Design System
+// PrintoPay Design System
 export const Colors = {
   // Brand
   primary: '#6366f1',

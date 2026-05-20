@@ -14,6 +14,7 @@ export function JobRow({
   onSelect: () => void;
 }) {
   const meta = statusMeta[job.status];
+  const documents = job.documents?.length ? job.documents : job.document ? [job.document] : [];
 
   return (
     <button
@@ -33,7 +34,7 @@ export function JobRow({
             <Badge variant={meta.variant}>{meta.label}</Badge>
           </div>
           <p className="mt-1 truncate text-sm text-secondary">
-            {job.document?.originalName ?? 'Document'} · {job.shop?.name ?? 'Shop'}
+            {documents.length > 1 ? `${documents.length} files` : documents[0]?.originalName ?? 'Document'} · {job.shop?.name ?? 'Shop'}
           </p>
           <p className="mt-1 text-xs text-muted">
             {new Date(job.createdAt).toLocaleString()} · {job.estimatedPages} pages · {job.settings.copies} copies

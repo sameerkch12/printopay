@@ -99,6 +99,24 @@ export async function readLocalDocument(publicId: string) {
   return fs.readFile(filePath);
 }
 
+export async function deleteStoredDocument(publicId: string) {
+  if (isLocalDocumentPublicId(publicId)) {
+    const fileName = publicId.slice(localPublicIdPrefix.length);
+    const filePath = path.resolve(localUploadDir, fileName);
+    if (!filePath.startsWith(localUploadDir + path.sep)) {
+      throw new ApiError(400, 'Invalid local document path');
+    }
+
+    await fs.rm(filePath, { force: true });
+    return;
+  }
+
+  await cloudinary.uploader.destroy(publicId, {
+    resource_type: 'raw',
+    type: 'authenticated',
+  });
+}
+
 export async function uploadPdfToCloudinary(file: Express.Multer.File): Promise<UploadApiResponse> {
   try {
     return await uploadToCloudinary(file);
@@ -116,7 +134,7 @@ export function uploadShopPhotoToCloudinary(file: Express.Multer.File, shopId: s
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: 'printtary/shops',
+        folder: 'printopay/shops',
         public_id: shopId,
         resource_type: 'image',
         overwrite: true,
@@ -137,13 +155,13 @@ export function uploadShopPhotoToCloudinary(file: Express.Multer.File, shopId: s
   });
 }
 
-export function buildSignedDocumentUrl(publicId: string, expiresInSeconds = env.SIGNED_URL_EXPIRES_SECONDS) {
+export function buildDocumentFetchUrl(publicId: string) {
   if (isLocalDocumentPublicId(publicId)) {
     const fileName = publicId.slice(localPublicIdPrefix.length);
     return `/api/v1/documents/local/${encodeURIComponent(fileName)}`;
   }
 
-  const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
+  const expiresAt = Math.floor(Date.now() / 1000) + 5 * 60;
 
   return cloudinary.url(publicId, {
     resource_type: 'raw',
