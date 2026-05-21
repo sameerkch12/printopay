@@ -1,4 +1,8 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://printopay.onrender.com/api/v1';
+export function forceHttpsForRenderUrl(url: string) {
+  return url.replace(/^http:\/\/printopay\.onrender\.com/i, 'https://printopay.onrender.com');
+}
+
+const API_BASE_URL = forceHttpsForRenderUrl(process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://printopay.onrender.com/api/v1');
 
 export type Role = 'shop_owner' | 'admin';
 export type PrintStatus = 'pending' | 'processing' | 'printing' | 'completed' | 'failed' | 'expired';

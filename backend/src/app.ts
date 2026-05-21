@@ -14,6 +14,7 @@ export function createApp() {
   const allowedOrigins = env.CLIENT_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean);
 
   app.disable('x-powered-by');
+  app.set('trust proxy', 1);
   app.use(helmet());
   app.use(compression());
   app.use(cors({ origin: env.CLIENT_ORIGIN === '*' ? true : allowedOrigins }));

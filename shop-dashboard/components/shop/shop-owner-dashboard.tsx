@@ -16,6 +16,7 @@ import {
   Shop,
   updateJobStatus,
   User,
+  forceHttpsForRenderUrl,
   verifyShopOtp,
 } from '@/lib/api';
 import { getRealtimeSocket } from '@/lib/realtime';
@@ -32,10 +33,11 @@ function escapeHtml(value: string) {
 }
 
 async function openPrintWindow(url: string, job: PrintJob, document?: DocumentAsset, settings?: PrintSettings) {
+  const printDocumentUrl = forceHttpsForRenderUrl(url);
   const mimeType = document?.mimeType ?? job.document?.mimeType;
   const fileName = document?.originalName ?? job.document?.originalName ?? 'Document';
   const printSettings = settings ?? job.settings;
-  const response = await fetch(url);
+  const response = await fetch(printDocumentUrl);
   if (!response.ok) {
     throw new Error('Document load nahi hua');
   }
@@ -105,7 +107,7 @@ async function openPrintWindow(url: string, job: PrintJob, document?: DocumentAs
 
   if (!printWindow) {
     URL.revokeObjectURL(blobUrl);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(printDocumentUrl, '_blank', 'noopener,noreferrer');
     return;
   }
 
