@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  TextInput,
+  // TextInput,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -27,9 +27,13 @@ export default function ScanScreen() {
   const { setSelectedShop } = usePrint();
   const { showAlert } = useAlert();
 
-  const [shopCode, setShopCode] = useState('');
+  // Manual code entry is parked for a future release.
+  // const [shopCode, setShopCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'qr' | 'manual'>('qr');
+  const activeTab = 'qr';
+  const scanTabs = ['qr'] as const;
+  // const [activeTab, setActiveTab] = useState<'qr' | 'manual'>('qr');
+  // const scanTabs = ['qr', 'manual'] as const;
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
@@ -48,13 +52,14 @@ export default function ScanScreen() {
         setScanned(false);
       }
     } catch {
-      showAlert('Scan Failed', 'Could not open this shop QR. Please try again or enter the shop code manually.');
+      showAlert('Scan Failed', 'Could not open this shop QR. Please try again.');
       setScanned(false);
     } finally {
       setLoading(false);
     }
   };
 
+  /*
   const handleManualEntry = async () => {
     const code = shopCode.trim();
     if (!code) {
@@ -63,6 +68,7 @@ export default function ScanScreen() {
     }
     await resolveShop(code);
   };
+  */
 
   const handleQrScanned = async ({ data }: BarcodeScanningResult) => {
     if (scanned || loading) return;
@@ -90,25 +96,29 @@ export default function ScanScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           {/* Tabs */}
           <View style={styles.tabs}>
-            {(['qr', 'manual'] as const).map(tab => (
+            {scanTabs.map(tab => (
               <Pressable
                 key={tab}
-                onPress={() => setActiveTab(tab)}
+                onPress={() => {
+                  // setActiveTab(tab);
+                }}
                 style={[styles.tab, activeTab === tab && styles.tabActive]}
               >
                 <Ionicons
-                  name={tab === 'qr' ? 'qr-code-outline' : 'keypad-outline'}
+                  name="qr-code-outline"
+                  // name={tab === 'qr' ? 'qr-code-outline' : 'keypad-outline'}
                   size={16}
                   color={activeTab === tab ? Colors.primary : Colors.textMuted}
                 />
                 <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                  {tab === 'qr' ? 'Scan QR' : 'Enter Code'}
+                  Scan QR
+                  {/* {tab === 'qr' ? 'Scan QR' : 'Enter Code'} */}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          {activeTab === 'qr' ? (
+          {(
             <View style={styles.qrSection}>
               <GlassCard style={styles.qrCard} gradient>
                 <View style={styles.qrFrame}>
@@ -160,22 +170,24 @@ export default function ScanScreen() {
                 </Text>
               </GlassCard>
 
-              <GlassCard style={styles.noticeCard}>
-                <Text style={styles.noticeText}>
-                  Enter the shop QR code manually if camera scanning is unavailable on this device.
-                </Text>
-                {scanned && !loading && (
+              {scanned && !loading && (
+                <GlassCard style={styles.noticeCard}>
                   <GradientButton
                     title="Scan Again"
                     onPress={() => setScanned(false)}
                     variant="secondary"
                     size="sm"
                   />
-                )}
-              </GlassCard>
+                </GlassCard>
+              )}
             </View>
-          ) : (
-            /* Manual Code Entry */
+          )}
+
+          {/*
+            Manual Code Entry is hidden for now.
+            Restore TextInput import, shopCode state, handleManualEntry, setActiveTab,
+            and scanTabs = ['qr', 'manual'] when this feature is needed.
+
             <View style={styles.manualSection}>
               <GlassCard gradient>
                 <Text style={styles.inputLabel}>Shop Code or ID</Text>
@@ -212,7 +224,7 @@ export default function ScanScreen() {
                 />
               </GlassCard>
             </View>
-          )}
+          */}
         </ScrollView>
       </View>
     </KeyboardAvoidingView>
