@@ -1,6 +1,5 @@
 import { AlertProvider } from '@/template';
-import { ClerkProvider } from '@clerk/expo';
-import { useUser } from '@clerk/expo';
+import { ClerkProvider, useUser } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

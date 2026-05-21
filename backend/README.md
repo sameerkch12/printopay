@@ -18,6 +18,22 @@ npm install
 npm run dev
 ```
 
+## Production Deploy
+
+For Render or any Node host, build the TypeScript app and run the compiled server:
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+Recommended Render settings:
+
+- Root Directory: `backend`
+- Build Command: `npm install && npm run build`
+- Start Command: `npm start`
+
 ## Main Endpoints
 
 - `GET /api/v1/health`

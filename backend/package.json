@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Production-ready backend base for PrintoPay document uploads and print jobs.",
   "main": "dist/server.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc -p tsconfig.json",

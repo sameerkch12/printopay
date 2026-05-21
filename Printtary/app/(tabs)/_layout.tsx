@@ -4,12 +4,13 @@ import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, View, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/theme';
+import { AppLoading } from '@/components/ui/AppLoading';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isLoaded } = useAuth();
 
-  if (!isLoaded) return null;
+  if (!isLoaded) return <AppLoading />;
   if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
 
   return (

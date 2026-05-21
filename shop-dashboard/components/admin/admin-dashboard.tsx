@@ -111,7 +111,15 @@ export function AdminDashboard({
         </div>
         <div className="grid gap-5 xl:grid-cols-2">
           <AdminList title="Shops" items={shopItems} onAction={approveShop} />
-          <AdminList title="Users" items={users.map((adminUser) => ({ id: adminUser.id, title: adminUser.name, sub: adminUser.email, badge: adminUser.role }))} />
+          <AdminList
+            title="Users"
+            items={users.map((adminUser) => ({
+              id: adminUser.id ?? adminUser._id ?? adminUser.email,
+              title: adminUser.name,
+              sub: adminUser.email,
+              badge: adminUser.role,
+            }))}
+          />
         </div>
         <Card>
           <CardHeader>

@@ -16,8 +16,8 @@ The app runs on `http://localhost:3001`.
 Create `.env.local` from `.env.example`:
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
+NEXT_PUBLIC_API_BASE_URL=https://printopay.onrender.com/api/v1
 NEXT_PUBLIC_CUSTOMER_APP_URL=http://localhost:8083
 ```
 
-Start the backend first. Use the Register Shop tab for shop owners and Admin Setup tab for the first admin.
+Use the Register Shop tab for shop owners and Admin Setup tab for the first admin.

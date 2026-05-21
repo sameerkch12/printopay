@@ -20,8 +20,8 @@ export function AdminList({
       </CardHeader>
       <CardContent className="grid gap-3">
         {items.length ? (
-          items.map((item) => (
-            <div key={item.id} className="rounded-[14px] border border-border bg-surface/70 p-3">
+          items.map((item, index) => (
+            <div key={item.id || `${item.title}-${index}`} className="rounded-[14px] border border-border bg-surface/70 p-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">{item.title}</p>
                 <Badge>{item.badge}</Badge>

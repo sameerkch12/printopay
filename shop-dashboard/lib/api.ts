@@ -1,9 +1,10 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:5000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://printopay.onrender.com/api/v1';
 
 export type Role = 'shop_owner' | 'admin';
 export type PrintStatus = 'pending' | 'processing' | 'printing' | 'completed' | 'failed' | 'expired';
 
 export type User = {
+  _id?: string;
   id: string;
   name: string;
   email: string;
