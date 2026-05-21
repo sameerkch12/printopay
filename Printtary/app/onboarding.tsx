@@ -1,20 +1,15 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Dimensions,
-  FlatList,
   Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { Colors, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,16 +46,12 @@ const SLIDES = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollX = useSharedValue(0);
+  const currentSlide = SLIDES[currentIndex];
 
   const handleNext = () => {
     if (currentIndex < SLIDES.length - 1) {
-      const next = currentIndex + 1;
-      flatListRef.current?.scrollToIndex({ index: next, animated: true });
-      setCurrentIndex(next);
-      scrollX.value = withTiming(next * width);
+      setCurrentIndex((index) => index + 1);
     } else {
       router.replace('/(tabs)');
     }
@@ -109,27 +100,16 @@ export default function OnboardingScreen() {
 
       {/* Slides */}
       <View style={styles.slidesWrapper}>
-        <FlatList
-          ref={flatListRef}
-          data={SLIDES}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          scrollEnabled={false}
-          keyExtractor={item => item.id}
-          renderItem={({ item, index }) => (
-            <View style={styles.slide}>
-              <LinearGradient
-                colors={[`${item.color}25`, `${item.accent}10`]}
-                style={styles.iconCircle}
-              >
-                <Ionicons name={item.icon as any} size={40} color={item.color} />
-              </LinearGradient>
-              <Text style={styles.slideTitle}>{item.title}</Text>
-              <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
-            </View>
-          )}
-        />
+        <View style={styles.slide}>
+          <LinearGradient
+            colors={[`${currentSlide.color}25`, `${currentSlide.accent}10`]}
+            style={styles.iconCircle}
+          >
+            <Ionicons name={currentSlide.icon as any} size={40} color={currentSlide.color} />
+          </LinearGradient>
+          <Text style={styles.slideTitle}>{currentSlide.title}</Text>
+          <Text style={styles.slideSubtitle}>{currentSlide.subtitle}</Text>
+        </View>
 
         {/* Dots */}
         <View style={styles.dots}>
