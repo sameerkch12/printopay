@@ -6,9 +6,7 @@ import {
   ScrollView,
   Pressable,
   RefreshControl,
-  Alert,
 } from 'react-native';
-import { useClerk } from '@clerk/expo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,7 +21,6 @@ import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow } from '@/constan
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { signOut } = useClerk();
   const { jobHistory } = usePrint();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,20 +39,6 @@ export default function HomeScreen() {
   const recentJobs = jobHistory.slice(0, 3);
   const pendingCount = jobHistory.filter(j => j.status === 'pending' || j.status === 'printing').length;
   const completedCount = jobHistory.filter(j => j.status === 'completed').length;
-
-  const handleLogout = () => {
-    Alert.alert('Logout', 'Sign out from this account?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-          router.replace('/(auth)/sign-in');
-        },
-      },
-    ]);
-  };
 
   return (
     <ScrollView
@@ -77,13 +60,6 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}>PrintoPay</Text>
         </View>
         <View style={styles.headerActions}>
-          <Pressable
-            onPress={handleLogout}
-            style={styles.logoutBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="log-out-outline" size={20} color={Colors.textSecondary} />
-          </Pressable>
           <Pressable
             onPress={() => router.push('/scan')}
             style={styles.scanBtn}

@@ -1,5 +1,5 @@
-import { AuthForm } from '@/components/auth/AuthForm';
+import { Redirect } from 'expo-router';
 
 export default function SignUpScreen() {
-  return <AuthForm mode="sign-up" />;
+  return <Redirect href="/(tabs)" />;
 }

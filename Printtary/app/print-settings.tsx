@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAuth } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { usePrint } from '@/hooks/usePrint';
@@ -48,7 +47,6 @@ export default function PrintSettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { shopId } = useLocalSearchParams<{ shopId?: string }>();
-  const { isSignedIn, isLoaded } = useAuth();
   const {
     setPrintSettings,
     selectedFile,
@@ -179,18 +177,6 @@ export default function PrintSettingsScreen() {
       setSubmitError('Please select a shop and file before generating print code.');
       return;
     }
-    if (!isLoaded) {
-      setSubmitError('Authentication is still loading. Please try again in a moment.');
-      return;
-    }
-    if (!isSignedIn) {
-      router.push({
-        pathname: '/(auth)/sign-in',
-        params: { redirectTo: selectedShop ? `/print-settings?shopId=${selectedShop.id}` : '/print-settings' },
-      });
-      return;
-    }
-
     setSubmitting(true);
     const payload: PrintSettings = {
       ...documentSettings[0]?.settings,
@@ -446,16 +432,16 @@ export default function PrintSettingsScreen() {
         </View>
         <Pressable
           onPress={handleSubmit}
-          disabled={submitting || isUploading || !isLoaded}
+          disabled={submitting || isUploading}
           style={({ pressed }) => [
             styles.generateBtn,
-            (pressed || submitting || isUploading || !isLoaded) && { opacity: 0.82 },
+            (pressed || submitting || isUploading) && { opacity: 0.82 },
           ]}
         >
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.generateText}>{isLoaded ? 'Generate Print Code' : 'Please wait...'}</Text>
+            <Text style={styles.generateText}>Generate Print Code</Text>
           )}
         </Pressable>
       </View>

@@ -1,6 +1,5 @@
 import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUser } from '@clerk/expo';
 import { DocumentPrintSettings, PrintJob, PrintSettings, UploadedFile, Shop } from '@/types';
 import { fetchJobStatus, uploadDocument } from '@/services/printService';
 import { getRealtimeSocket } from '@/services/realtime';
@@ -42,7 +41,7 @@ export const PrintContext = createContext<PrintContextType | undefined>(undefine
 
 const DEFAULT_SETTINGS = PRINT_CONFIG.defaultSettings as PrintSettings;
 
-const HISTORY_KEY_PREFIX = 'printopay:job-history';
+const HISTORY_KEY = 'printopay:guest-job-history';
 
 function reviveDate(value?: string | Date) {
   return value ? new Date(value) : new Date();
@@ -71,8 +70,6 @@ function reviveJob(raw: PrintJob): PrintJob {
 }
 
 export function PrintProvider({ children }: { children: ReactNode }) {
-  const { user, isLoaded: isUserLoaded } = useUser();
-  const userId = user?.id;
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [selectedFiles, setSelectedFilesState] = useState<UploadedFile[]>([]);
@@ -93,20 +90,12 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!isUserLoaded) return;
-
     let cancelled = false;
     const loadHistory = async () => {
       setHistoryReady(false);
 
-      if (!userId) {
-        setJobHistory([]);
-        setHistoryReady(true);
-        return;
-      }
-
       try {
-        const stored = await AsyncStorage.getItem(`${HISTORY_KEY_PREFIX}:${userId}`);
+        const stored = await AsyncStorage.getItem(HISTORY_KEY);
         if (cancelled) return;
 
         const parsed = stored ? JSON.parse(stored) as PrintJob[] : [];
@@ -122,12 +111,12 @@ export function PrintProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [isUserLoaded, userId]);
+  }, []);
 
   useEffect(() => {
-    if (!historyReady || !userId) return;
-    AsyncStorage.setItem(`${HISTORY_KEY_PREFIX}:${userId}`, JSON.stringify(jobHistory)).catch(() => undefined);
-  }, [historyReady, jobHistory, userId]);
+    if (!historyReady) return;
+    AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(jobHistory)).catch(() => undefined);
+  }, [historyReady, jobHistory]);
 
   const refreshJob = useCallback(async (jobId: string) => {
     const updatedJob = await fetchJobStatus(jobId);
