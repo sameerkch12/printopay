@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   name: 'PrintoPay',
-  tagline: 'Print Without Sharing on WhatsApp',
+  tagline: 'Print Instantly',
   version: '1.0.0',
   otpExpiry: 15, // minutes
   fileExpiry: 24, // hours

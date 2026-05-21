@@ -30,8 +30,7 @@ export default function JobsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>My Print</Text>
-          <Text style={styles.headerSub}>{jobHistory.length} total jobs</Text>
-        </View>
+          <Text style={styles.headerSub}>{jobHistory.length} total prints </Text>  </View>
         <View style={styles.headerBadge}>
           <LinearGradient
             colors={[Colors.primary, Colors.accent]}

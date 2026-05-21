@@ -136,7 +136,7 @@ export default function HomeScreen() {
             <Ionicons name="document-text-outline" size={18} color={Colors.primaryLight} />
           </View>
           <Text style={styles.statValue}>{jobHistory.length}</Text>
-          <Text style={styles.statLabel}>Total Jobs</Text>
+          <Text style={styles.statLabel}>Total Print</Text>
         </GlassCard>
       </View>
 

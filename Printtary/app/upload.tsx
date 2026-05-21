@@ -313,7 +313,7 @@ export default function UploadScreen() {
       {selectedFiles.length > 0 && !uploading && (
         <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 8 }]}>
           <GradientButton
-            title="Configure Print Settings"
+            title="Continue to next"
             onPress={handleContinue}
             size="lg"
             icon={<Ionicons name="settings" size={18} color="#fff" />}

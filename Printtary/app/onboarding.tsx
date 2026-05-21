@@ -24,7 +24,7 @@ const { width, height } = Dimensions.get('window');
 const SLIDES = [
   {
     id: '1',
-    title: 'Print Without\nSharing on WhatsApp',
+    title: 'Print Instantly',
     subtitle: 'Securely send your documents to any print shop. No more sharing on messaging apps.',
     icon: 'shield-checkmark',
     color: Colors.primary,
