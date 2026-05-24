@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   Switch,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,8 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { usePrint } from '@/hooks/usePrint';
 import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow } from '@/constants/theme';
+
+const SHOP_OWNER_REGISTER_URL = 'https://shop.printopay.com/';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -225,6 +228,15 @@ export default function HomeScreen() {
           )}
         </View>
       )}
+
+      <Pressable
+        onPress={() => {
+          Linking.openURL(SHOP_OWNER_REGISTER_URL).catch(() => undefined);
+        }}
+        style={({ pressed }) => [styles.ownerLink, pressed && { opacity: 0.7 }]}
+      >
+        <Text style={styles.ownerLinkText}>Own a print shop? Register here</Text>
+      </Pressable>
 
       <View style={{ height: 24 }} />
     </ScrollView>
@@ -487,5 +499,18 @@ const styles = StyleSheet.create({
   },
   jobsList: {
     gap: Spacing.sm,
+  },
+  ownerLink: {
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  ownerLinkText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    includeFontPadding: false,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });
