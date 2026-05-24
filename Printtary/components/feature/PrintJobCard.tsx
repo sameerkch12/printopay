@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { PrintJob } from '@/types';
 import { getStatusColor, getStatusLabel, formatFileSize } from '@/services/printService';
 import { Badge } from '@/components/ui/Badge';
-import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow } from '@/constants/theme';
+import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow, getActiveThemeMode } from '@/constants/theme';
 
 interface PrintJobCardProps {
   job: PrintJob;
@@ -15,6 +15,10 @@ interface PrintJobCardProps {
 export function PrintJobCard({ job }: PrintJobCardProps) {
   const router = useRouter();
   const statusColor = getStatusColor(job.status);
+  const isLightMode = getActiveThemeMode() === 'light';
+  const codeTint = job.status === 'pending' ? Colors.warning : Colors.success;
+  const codeBackground = isLightMode ? `${codeTint}18` : `${codeTint}22`;
+  const codeTextColor = isLightMode ? (job.status === 'pending' ? '#92400e' : '#15803d') : codeTint;
 
   const formatDate = (date: Date) => {
     const d = new Date(date);
@@ -78,9 +82,9 @@ export function PrintJobCard({ job }: PrintJobCardProps) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.date}>{formatDate(job.createdAt)}</Text>
-          <View style={[styles.otpBadge, { borderColor: statusColor }]}>
-            <Ionicons name="keypad" size={10} color={statusColor} />
-            <Text style={[styles.otpText, { color: statusColor }]}>Code: {job.otp}</Text>
+          <View style={[styles.otpBadge, { borderColor: codeTint, backgroundColor: codeBackground }]}>
+            <Ionicons name="keypad" size={10} color={codeTextColor} />
+            <Text style={[styles.otpText, { color: codeTextColor }]}>Code: {job.otp || '----'}</Text>
           </View>
         </View>
 

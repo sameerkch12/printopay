@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { usePrint } from '@/hooks/usePrint';
 import { calculatePrintPrice, fetchShopDetails, formatFileSize, getShopPrintRate } from '@/services/printService';
 import { PrintSettings } from '@/types';
@@ -113,6 +114,7 @@ export default function PrintSettingsScreen() {
   const blackAndWhitePreview = activeSettings.color === 'bw'
     ? ({ filter: 'grayscale(1) contrast(1.08)' } as Record<string, string>)
     : undefined;
+  const generationProgress = isUploading ? uploadProgress : submitting ? 6 : 0;
 
   React.useEffect(() => {
     if (activeFileIndex >= filesToPrint.length) {
@@ -445,6 +447,28 @@ export default function PrintSettingsScreen() {
           )}
         </Pressable>
       </View>
+
+      {(submitting || isUploading) ? (
+        <View style={styles.loadingOverlay} pointerEvents="auto">
+          <View style={styles.loadingPanel}>
+            <View style={styles.loadingIconWrap}>
+              <ActivityIndicator color="#fff" size="small" />
+            </View>
+            <Text style={styles.loadingTitle}>Generating print code</Text>
+            <Text style={styles.loadingBody}>
+              File upload ho rahi hai. Please wait, screen band mat kijiye.
+            </Text>
+            <View style={styles.loadingProgress}>
+              <ProgressBar
+                progress={generationProgress}
+                height={10}
+                label="Uploading secure file"
+              />
+            </View>
+            <Text style={styles.loadingPercent}>{Math.round(generationProgress)}%</Text>
+          </View>
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -992,5 +1016,59 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: FontSize.base,
     fontWeight: FontWeight.bold,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+    backgroundColor: 'rgba(15,23,42,0.38)',
+  },
+  loadingPanel: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.borderFocus,
+    backgroundColor: Colors.bgCard,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    gap: Spacing.sm,
+    ...Shadow.card,
+  },
+  loadingIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    ...Shadow.glow,
+  },
+  loadingTitle: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.extrabold,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  loadingBody: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  loadingProgress: {
+    width: '100%',
+    marginTop: Spacing.sm,
+  },
+  loadingPercent: {
+    color: Colors.primary,
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.extrabold,
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
   },
 });

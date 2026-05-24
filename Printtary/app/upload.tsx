@@ -40,7 +40,7 @@ export default function UploadScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { shopId } = useLocalSearchParams<{ shopId?: string }>();
-  const { setSelectedFile, selectedShop, setSelectedShop, selectedFile, selectedFiles, setSelectedFiles } = usePrint();
+  const { setSelectedFile, selectedShop, setSelectedShop, selectedFiles, setSelectedFiles } = usePrint();
   const { showAlert } = useAlert();
 
   const [uploading, setUploading] = useState(false);
