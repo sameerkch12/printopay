@@ -52,7 +52,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ErrorReporter />
         <PrintProvider>
-          <StatusBar style="light" backgroundColor={Colors.bg} />
+          <StatusBar style="dark" backgroundColor={Colors.bg} />
           <Stack
             screenOptions={{
               headerShown: false,

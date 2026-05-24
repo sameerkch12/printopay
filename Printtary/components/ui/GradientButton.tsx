@@ -56,6 +56,7 @@ export function GradientButton({
 
   const heights = { sm: 42, md: 52, lg: 60 };
   const fontSizes = { sm: FontSize.sm, md: FontSize.base, lg: FontSize.md };
+  const contrastText = variant === 'primary' || variant === 'danger';
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, fullWidth && { width: '100%' }]}>
@@ -81,13 +82,14 @@ export function GradientButton({
           ]}
         >
           {loading ? (
-            <ActivityIndicator color={Colors.textPrimary} size="small" />
+            <ActivityIndicator color={contrastText ? '#fff' : Colors.textPrimary} size="small" />
           ) : (
             <>
               {icon && iconPosition === 'left' && icon}
               <Text style={[
                 styles.text,
                 { fontSize: fontSizes[size] },
+                contrastText && styles.contrastText,
                 variant === 'secondary' && styles.secondaryText,
                 variant === 'ghost' && styles.ghostText,
                 textStyle,
@@ -129,6 +131,9 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     letterSpacing: 0.2,
     includeFontPadding: false,
+  },
+  contrastText: {
+    color: '#fff',
   },
   secondaryText: {
     color: Colors.textSecondary,

@@ -6,9 +6,7 @@ import {
   ScrollView,
   Pressable,
   RefreshControl,
-  Switch,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,78 +18,17 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { usePrint } from '@/hooks/usePrint';
 import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow } from '@/constants/theme';
 
-type ThemeMode = 'light' | 'dark';
-
-const THEME_KEY = 'printopay:home-theme';
-
-const homeThemes = {
-  dark: {
-    bg: Colors.bg,
-    bgCard: Colors.bgCard,
-    border: Colors.border,
-    borderFocus: Colors.borderFocus,
-    textPrimary: Colors.textPrimary,
-    textSecondary: Colors.textSecondary,
-    textMuted: Colors.textMuted,
-    heroGradient: ['rgba(99,102,241,0.2)', 'rgba(168,85,247,0.1)'] as [string, string],
-    cardGradient: ['rgba(99,102,241,0.1)', 'rgba(168,85,247,0.04)'] as [string, string],
-    softPrimary: 'rgba(99,102,241,0.08)',
-    softWarning: 'rgba(245,158,11,0.15)',
-    softSuccess: 'rgba(34,197,94,0.15)',
-    softAccent: 'rgba(99,102,241,0.15)',
-  },
-  light: {
-    bg: '#f8fafc',
-    bgCard: '#ffffff',
-    border: 'rgba(15,23,42,0.1)',
-    borderFocus: 'rgba(99,102,241,0.28)',
-    textPrimary: '#0f172a',
-    textSecondary: '#475569',
-    textMuted: '#64748b',
-    heroGradient: ['rgba(99,102,241,0.14)', 'rgba(34,197,94,0.08)'] as [string, string],
-    cardGradient: ['rgba(255,255,255,1)', 'rgba(238,242,255,0.9)'] as [string, string],
-    softPrimary: 'rgba(99,102,241,0.08)',
-    softWarning: 'rgba(245,158,11,0.14)',
-    softSuccess: 'rgba(34,197,94,0.14)',
-    softAccent: 'rgba(99,102,241,0.12)',
-  },
-};
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { jobHistory } = usePrint();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
-  const theme = homeThemes[themeMode];
-  const darkMode = themeMode === 'dark';
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1200);
     return () => clearTimeout(t);
   }, []);
-
-  useEffect(() => {
-    let mounted = true;
-
-    AsyncStorage.getItem(THEME_KEY)
-      .then((stored) => {
-        if (!mounted || (stored !== 'light' && stored !== 'dark')) return;
-        setThemeMode(stored);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const toggleTheme = (enabled: boolean) => {
-    const nextTheme = enabled ? 'dark' : 'light';
-    setThemeMode(nextTheme);
-    AsyncStorage.setItem(THEME_KEY, nextTheme).catch(() => undefined);
-  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -105,7 +42,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={[styles.screen, { paddingTop: insets.top, backgroundColor: theme.bg }]}
+      style={[styles.screen, { paddingTop: insets.top }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -113,28 +50,16 @@ export default function HomeScreen() {
           refreshing={refreshing}
           onRefresh={handleRefresh}
           tintColor={Colors.primary}
-          colors={[Colors.primary]}
         />
       }
     >
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.greeting, { color: theme.textSecondary }]}>Good morning 👋</Text>
-          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>PrintoPay</Text>
+          <Text style={styles.greeting}>Good morning 👋</Text>
+          <Text style={styles.headerTitle}>PrintoPay</Text>
         </View>
         <View style={styles.headerActions}>
-          <View style={[styles.themeToggle, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
-            <Text style={[styles.themeToggleText, { color: theme.textSecondary }]}>
-              {darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            </Text>
-            <Switch
-              value={darkMode}
-              onValueChange={toggleTheme}
-              trackColor={{ false: '#cbd5e1', true: Colors.primary }}
-              thumbColor="#fff"
-            />
-          </View>
           <Pressable
             onPress={() => router.push('/scan')}
             style={styles.scanBtn}
@@ -152,14 +77,14 @@ export default function HomeScreen() {
 
       {/* Hero CTA */}
       <LinearGradient
-        colors={theme.heroGradient}
-        style={[styles.heroBanner, { borderColor: theme.borderFocus }]}
+        colors={['rgba(99,102,241,0.2)', 'rgba(168,85,247,0.1)']}
+        style={styles.heroBanner}
       >
         <View style={styles.heroContent}>
           <View style={styles.heroLeft}>
             <Badge label="SECURE" color={Colors.success} size="sm" />
-            <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>Ready to print?</Text>
-            <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>Scan QR code at the shop or pick a nearby print center</Text>
+            <Text style={styles.heroTitle}>Ready to print?</Text>
+            <Text style={styles.heroSubtitle}>Scan QR code at the shop or pick a nearby print center</Text>
           </View>
           <View style={styles.heroIconWrap}>
             <Ionicons name="shield-checkmark" size={48} color={Colors.primary} style={{ opacity: 0.8 }} />
@@ -182,11 +107,7 @@ export default function HomeScreen() {
           </Pressable>
           <Pressable
             onPress={() => router.push('/(tabs)/print')}
-            style={({ pressed }) => [
-              styles.heroSecondaryBtn,
-              { backgroundColor: theme.softPrimary, borderColor: theme.borderFocus },
-              pressed && { opacity: 0.85 },
-            ]}
+            style={({ pressed }) => [styles.heroSecondaryBtn, pressed && { opacity: 0.85 }]}
           >
             <Ionicons name="search-outline" size={16} color={Colors.primaryLight} />
             <Text style={styles.heroSecondaryBtnText}>Find Shop</Text>
@@ -196,32 +117,32 @@ export default function HomeScreen() {
 
       {/* Stats row */}
       <View style={styles.statsRow}>
-        <GlassCard style={StyleSheet.flatten([styles.statCard, themedCard(theme)])} padding={14}>
-          <View style={[styles.statIconWrap, { backgroundColor: theme.softWarning }]}>
+        <GlassCard style={styles.statCard} padding={14}>
+          <View style={styles.statIconWrap}>
             <Ionicons name="time-outline" size={18} color={Colors.warning} />
           </View>
-          <Text style={[styles.statValue, { color: theme.textPrimary }]}>{pendingCount}</Text>
-          <Text style={[styles.statLabel, { color: theme.textMuted }]}>In Progress</Text>
+          <Text style={styles.statValue}>{pendingCount}</Text>
+          <Text style={styles.statLabel}>In Progress</Text>
         </GlassCard>
-        <GlassCard style={StyleSheet.flatten([styles.statCard, themedCard(theme)])} padding={14}>
-          <View style={[styles.statIconWrap, { backgroundColor: theme.softSuccess }]}>
+        <GlassCard style={styles.statCard} padding={14}>
+          <View style={[styles.statIconWrap, { backgroundColor: 'rgba(34,197,94,0.15)' }]}>
             <Ionicons name="checkmark-circle-outline" size={18} color={Colors.success} />
           </View>
-          <Text style={[styles.statValue, { color: theme.textPrimary }]}>{completedCount}</Text>
-          <Text style={[styles.statLabel, { color: theme.textMuted }]}>Completed</Text>
+          <Text style={styles.statValue}>{completedCount}</Text>
+          <Text style={styles.statLabel}>Completed</Text>
         </GlassCard>
-        <GlassCard style={StyleSheet.flatten([styles.statCard, themedCard(theme)])} padding={14}>
-          <View style={[styles.statIconWrap, { backgroundColor: theme.softAccent }]}>
+        <GlassCard style={styles.statCard} padding={14}>
+          <View style={[styles.statIconWrap, { backgroundColor: 'rgba(99,102,241,0.15)' }]}>
             <Ionicons name="document-text-outline" size={18} color={Colors.primaryLight} />
           </View>
-          <Text style={[styles.statValue, { color: theme.textPrimary }]}>{jobHistory.length}</Text>
-          <Text style={[styles.statLabel, { color: theme.textMuted }]}>Total Print</Text>
+          <Text style={styles.statValue}>{jobHistory.length}</Text>
+          <Text style={styles.statLabel}>Total Print</Text>
         </GlassCard>
       </View>
 
       {/* How it works */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>How it works</Text>
+        <Text style={styles.sectionTitle}>How it works</Text>
         <View style={styles.stepsGrid}>
           {[
             { step: '1', icon: 'qr-code-outline', title: 'Scan QR', desc: 'Scan shop QR code', color: Colors.primary },
@@ -229,29 +150,26 @@ export default function HomeScreen() {
             { step: '3', icon: 'options-outline', title: 'Configure', desc: 'Set print settings', color: Colors.warning },
             { step: '4', icon: 'key-outline', title: 'Get Code', desc: 'Share print code at shop', color: Colors.success },
           ].map((item) => (
-            <GlassCard key={item.step} style={StyleSheet.flatten([styles.stepCard, themedCard(theme)])} padding={12}>
+            <GlassCard key={item.step} style={styles.stepCard} padding={12}>
               <LinearGradient
                 colors={[`${item.color}22`, `${item.color}08`]}
                 style={styles.stepIconWrap}
               >
                 <Ionicons name={item.icon as any} size={20} color={item.color} />
               </LinearGradient>
-              <Text style={[styles.stepNum, { color: theme.textMuted }]}>Step {item.step}</Text>
-              <Text style={[styles.stepTitle, { color: theme.textPrimary }]}>{item.title}</Text>
-              <Text style={[styles.stepDesc, { color: theme.textSecondary }]}>{item.desc}</Text>
+              <Text style={styles.stepNum}>Step {item.step}</Text>
+              <Text style={styles.stepTitle}>{item.title}</Text>
+              <Text style={styles.stepDesc}>{item.desc}</Text>
             </GlassCard>
           ))}
         </View>
       </View>
 
       {/* Security features */}
-      <LinearGradient
-        colors={theme.cardGradient}
-        style={[styles.securityCard, styles.themedGradientCard, { borderColor: theme.border }]}
-      >
+      <GlassCard style={styles.securityCard} gradient>
         <View style={styles.securityHeader}>
           <Ionicons name="shield-checkmark" size={22} color={Colors.success} />
-          <Text style={[styles.securityTitle, { color: theme.textPrimary }]}>Enterprise Security</Text>
+          <Text style={styles.securityTitle}>Enterprise Security</Text>
         </View>
         <View style={styles.securityList}>
           {[
@@ -263,17 +181,17 @@ export default function HomeScreen() {
           ].map((feat, idx) => (
             <View key={idx} style={styles.securityItem}>
               <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
-              <Text style={[styles.securityText, { color: theme.textSecondary }]}>{feat}</Text>
+              <Text style={styles.securityText}>{feat}</Text>
             </View>
           ))}
         </View>
-      </LinearGradient>
+      </GlassCard>
 
       {/* Recent jobs */}
       {recentJobs.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Recent Jobs</Text>
+            <Text style={styles.sectionTitle}>Recent Jobs</Text>
             <Pressable onPress={() => router.push('/(tabs)/jobs')}>
               <Text style={styles.seeAll}>See all →</Text>
             </Pressable>
@@ -296,13 +214,6 @@ export default function HomeScreen() {
       <View style={{ height: 24 }} />
     </ScrollView>
   );
-}
-
-function themedCard(theme: (typeof homeThemes)[ThemeMode]) {
-  return {
-    backgroundColor: theme.bgCard,
-    borderColor: theme.border,
-  };
 }
 
 const styles = StyleSheet.create({
@@ -333,25 +244,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   headerActions: {
-    alignItems: 'flex-end',
-    gap: Spacing.sm,
-  },
-  themeToggle: {
-    minHeight: 36,
-    maxWidth: 190,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingLeft: 10,
-    paddingRight: 4,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  themeToggleText: {
-    flexShrink: 1,
-    fontSize: 10,
-    fontWeight: FontWeight.semibold,
-    includeFontPadding: false,
+    gap: Spacing.sm,
   },
   logoutBtn: {
     width: 44,
@@ -532,12 +427,6 @@ const styles = StyleSheet.create({
   },
   securityCard: {
     gap: Spacing.md,
-  },
-  themedGradientCard: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: 20,
-    ...Shadow.card,
   },
   securityHeader: {
     flexDirection: 'row',
