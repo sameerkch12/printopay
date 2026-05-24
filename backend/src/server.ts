@@ -4,6 +4,7 @@ import { connectDatabase, disconnectDatabase } from './config/db';
 import { createApp } from './app';
 import { startExpiredDocumentCleanup } from './services/documentCleanup.service';
 import { saveErrorLog } from './services/errorLog.service';
+import { startKeepAlive } from './services/keepAlive.service';
 import { initRealtime } from './services/realtime.service';
 
 async function bootstrap() {
@@ -13,6 +14,7 @@ async function bootstrap() {
   const server = createServer(app);
   initRealtime(server);
   await startExpiredDocumentCleanup();
+  const keepAliveTimer = startKeepAlive();
 
   server.listen(env.PORT, () => {
     console.log(`PrintoPay API running on port ${env.PORT}`);
@@ -25,6 +27,10 @@ async function bootstrap() {
     shuttingDown = true;
 
     console.log(`${signal} received, shutting down`);
+    if (keepAliveTimer) {
+      clearInterval(keepAliveTimer);
+    }
+
     const forceExit = setTimeout(() => {
       console.error('Forced shutdown after timeout');
       process.exit(exitCode);
