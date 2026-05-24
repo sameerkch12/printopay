@@ -121,6 +121,25 @@ async function openPrintWindow(url: string, job: PrintJob, document?: DocumentAs
   }, { once: true });
 }
 
+async function downloadDocument(url: string, document: DocumentAsset) {
+  const downloadUrl = forceHttpsForRenderUrl(url);
+  const response = await fetch(downloadUrl);
+  if (!response.ok) {
+    throw new Error('Document download nahi hua');
+  }
+
+  const blob = await response.blob();
+  const downloadBlob = blob.type ? blob : blob.slice(0, blob.size, document.mimeType || 'application/pdf');
+  const blobUrl = URL.createObjectURL(downloadBlob);
+  const link = window.document.createElement('a');
+  link.href = blobUrl;
+  link.download = document.originalName || 'document';
+  window.document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+}
+
 function documentIdOf(value: unknown) {
   if (typeof value === 'string') return value;
   if (typeof value === 'object' && value !== null && '_id' in value) return String(value._id);
@@ -154,6 +173,7 @@ export function ShopOwnerDashboard({
   const [message, setMessage] = useState('');
   const [printMessage, setPrintMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [downloadingDocumentId, setDownloadingDocumentId] = useState<string>();
   const [printingDocumentId, setPrintingDocumentId] = useState<string>();
   const [printedDocumentIds, setPrintedDocumentIds] = useState<Set<string>>(new Set());
   const [view, setView] = useState<ShopView>('dashboard');
@@ -229,6 +249,7 @@ export function ShopOwnerDashboard({
     setOtp('');
     setMessage('');
     setPrintMessage('');
+    setDownloadingDocumentId(undefined);
     setPrintingDocumentId(undefined);
     setPrintedDocumentIds(new Set());
     setVerifiedPrint(null);
@@ -296,6 +317,37 @@ export function ShopOwnerDashboard({
     }
   };
 
+  const handleDownloadVerified = async (documentId: string, index: number) => {
+    if (!verifiedPrint) return;
+    const documents = verifiedPrint.job.documents?.length ? verifiedPrint.job.documents : [verifiedPrint.job.document];
+    const document = documents.find((item) => item._id === documentId) ?? documents[index];
+    const printUrl =
+      verifiedPrint.printUrls?.find((item) => item.documentId === documentId)?.url ??
+      verifiedPrint.printUrls?.[index]?.url ??
+      (index === 0 ? verifiedPrint.printUrl : undefined);
+
+    if (!document || !printUrl) {
+      setMessage('Is file ka download URL nahi mila. Print code dobara verify karein.');
+      return;
+    }
+
+    setBusy(true);
+    setDownloadingDocumentId(documentId);
+    setMessage('');
+    setPrintMessage(`${document.originalName ?? `File ${index + 1}`} download ho raha hai. Please wait...`);
+    try {
+      await downloadDocument(printUrl, document);
+      setMessage(`${document.originalName ?? `File ${index + 1}`} download started.`);
+      setPrintMessage('');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not download document');
+      setPrintMessage('');
+    } finally {
+      setBusy(false);
+      setDownloadingDocumentId(undefined);
+    }
+  };
+
   return (
     <div className="mx-auto grid max-w-[1440px] gap-5 lg:grid-cols-[260px_1fr]">
       <Sidebar user={user} shop={currentShop} onLogout={onLogout} activeView={view} onViewChange={handleViewChange} />
@@ -353,13 +405,16 @@ export function ShopOwnerDashboard({
               setOtp(value);
               setVerifiedPrint(null);
               setPrintMessage('');
+              setDownloadingDocumentId(undefined);
               setPrintingDocumentId(undefined);
               setPrintedDocumentIds(new Set());
             }}
             printMessage={printMessage}
             verifiedJob={verifiedPrint?.job ?? null}
             onVerifyOtp={handleVerifyOtp}
+            onDownload={handleDownloadVerified}
             onPrint={handlePrintVerified}
+            downloadingDocumentId={downloadingDocumentId}
             printingDocumentId={printingDocumentId}
           />
           <JobsCard jobs={filtered} query={query} setQuery={setQuery} />

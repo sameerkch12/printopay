@@ -1,4 +1,4 @@
-import { KeyRound, Printer, Settings2, ShieldCheck } from 'lucide-react';
+import { Download, KeyRound, Printer, Settings2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,9 @@ export function OtpPrintPanel({
   printMessage,
   verifiedJob,
   onVerifyOtp,
+  onDownload,
   onPrint,
+  downloadingDocumentId,
   printingDocumentId,
 }: {
   busy: boolean;
@@ -47,7 +49,9 @@ export function OtpPrintPanel({
   printMessage?: string;
   verifiedJob?: PrintJob | null;
   onVerifyOtp: () => void;
+  onDownload: (documentId: string, index: number) => void;
   onPrint: (documentId: string, index: number) => void;
+  downloadingDocumentId?: string;
   printingDocumentId?: string;
 }) {
   const settings = verifiedJob?.settings;
@@ -163,16 +167,29 @@ export function OtpPrintPanel({
                         </div>
                       ) : null}
                     </div>
-                    <Button
-                      type="button"
-                      onClick={() => onPrint(item._id, index)}
-                      disabled={busy}
-                      size="sm"
-                      className="w-full sm:w-auto"
-                    >
-                      <Printer className="h-4 w-4" />
-                      {printingDocumentId === item._id ? 'Opening...' : 'Print'}
-                    </Button>
+                    <div className="grid gap-2 sm:flex sm:justify-end">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => onDownload(item._id, index)}
+                        disabled={busy}
+                        size="sm"
+                        className="w-full sm:w-auto"
+                      >
+                        <Download className="h-4 w-4" />
+                        {downloadingDocumentId === item._id ? 'Downloading...' : 'Download'}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => onPrint(item._id, index)}
+                        disabled={busy}
+                        size="sm"
+                        className="w-full sm:w-auto"
+                      >
+                        <Printer className="h-4 w-4" />
+                        {printingDocumentId === item._id ? 'Opening...' : 'Print'}
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
