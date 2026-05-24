@@ -108,7 +108,7 @@ export default function PrintSettingsScreen() {
     const selectedFilePages = parseRangeCount(item.settings.pageRange, filesToPrint[index]?.pages ?? 1);
     return total + calculatePrintPrice(selectedShop, item.settings, selectedFilePages * item.settings.copies);
   }, 0);
-  const previewSlideWidth = Math.max(280, Math.min(width - Spacing.md * 4, 560));
+  const previewSlideWidth = Math.max(240, Math.min(width - Spacing.md * 4, 480));
   const landscape = activeSettings.orientation === 'landscape';
   const blackAndWhitePreview = activeSettings.color === 'bw'
     ? ({ filter: 'grayscale(1) contrast(1.08)' } as Record<string, string>)
@@ -227,7 +227,7 @@ export default function PrintSettingsScreen() {
       <ScreenHeader title="Print Settings" subtitle={selectedShop.name} showBack />
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 118 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 88 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topRow}>
@@ -479,13 +479,13 @@ function ChoiceCard({
       style={[styles.choiceCard, selected && styles.choiceCardSelected]}
     >
       <View style={[styles.choiceIcon, selected && styles.choiceIconSelected]}>
-        <Ionicons name={icon} size={23} color={color} />
+        <Ionicons name={icon} size={18} color={color} />
       </View>
       <View style={styles.choiceTextWrap}>
         <Text style={[styles.choiceTitle, selected && styles.activeText]}>{title}</Text>
         <Text style={styles.choiceSub}>{subtitle}</Text>
       </View>
-      {selected ? <Ionicons name="checkmark-circle" size={18} color={Colors.success} /> : null}
+      {selected ? <Ionicons name="checkmark-circle" size={16} color={Colors.success} /> : null}
     </Pressable>
   );
 }
@@ -550,8 +550,8 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
   content: {
-    padding: Spacing.md,
-    gap: Spacing.md,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
   },
   topRow: {
     alignItems: 'flex-end',
@@ -564,21 +564,21 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderFocus,
     backgroundColor: 'rgba(99,102,241,0.12)',
     borderRadius: Radius.full,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   addFilesText: {
     color: Colors.primaryLight,
     fontWeight: FontWeight.bold,
-    fontSize: FontSize.base,
+    fontSize: FontSize.sm,
   },
   previewShell: {
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.bgCard,
-    padding: Spacing.md,
-    gap: Spacing.md,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
     alignItems: 'center',
     ...Shadow.card,
   },
@@ -611,8 +611,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderFocus,
     backgroundColor: 'rgba(99,102,241,0.14)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   fileCounterText: {
     color: Colors.primaryLight,
@@ -667,13 +667,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pagePortrait: {
-    width: '68%',
-    maxWidth: 360,
+    width: '58%',
+    maxWidth: 300,
     aspectRatio: 0.71,
   },
   pageLandscape: {
-    width: '88%',
-    maxWidth: 520,
+    width: '78%',
+    maxWidth: 420,
     aspectRatio: 1.41,
   },
   previewImage: {
@@ -687,8 +687,8 @@ const styles = StyleSheet.create({
   },
   pdfPreview: {
     alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.lg,
+    gap: 6,
+    padding: Spacing.md,
   },
   pdfPreviewLandscape: {
     transform: [{ rotate: '90deg' }],
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.sm,
+    gap: 6,
   },
   activeFileMetaText: {
     color: Colors.textSecondary,
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: Spacing.sm,
+    gap: 6,
   },
   metaPill: {
     flexDirection: 'row',
@@ -760,8 +760,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.bgSurface,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   metaPillText: {
     color: Colors.textSecondary,
@@ -776,17 +776,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.md,
-    gap: Spacing.md,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
   },
   cardTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.base,
     color: Colors.textPrimary,
     fontWeight: FontWeight.bold,
   },
   cardSub: {
     marginTop: 2,
-    fontSize: FontSize.base,
+    fontSize: FontSize.xs,
     color: Colors.textSecondary,
   },
   stepper: {
@@ -797,24 +797,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   stepperBtn: {
-    width: 42,
-    height: 42,
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperText: {
     color: '#fff',
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: FontWeight.medium,
   },
   disabledText: {
     opacity: 0.35,
   },
   copyCount: {
-    minWidth: 34,
+    minWidth: 28,
     textAlign: 'center',
     color: '#fff',
-    fontSize: FontSize.lg,
+    fontSize: FontSize.base,
     fontWeight: FontWeight.bold,
   },
   optionsCard: {
@@ -822,27 +822,29 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.md,
-    gap: Spacing.md,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
   },
   sectionTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.sm,
     color: Colors.textPrimary,
     fontWeight: FontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   rangeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: 6,
   },
   rangeChip: {
-    height: 50,
+    height: 38,
     justifyContent: 'center',
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.bgSurface,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 10,
   },
   rangeChipActive: {
     borderColor: Colors.primary,
@@ -855,45 +857,45 @@ const styles = StyleSheet.create({
   },
   rangeInputWrap: {
     flex: 1,
-    height: 50,
+    height: 38,
     justifyContent: 'center',
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.bgInput,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 10,
   },
   rangeInputActive: {
     borderColor: Colors.primary,
   },
   rangeInput: {
     color: Colors.textPrimary,
-    fontSize: FontSize.base,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
   },
   optionGrid: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: 6,
   },
   choiceCard: {
     flex: 1,
-    minHeight: 82,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: 6,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.bgSurface,
-    padding: Spacing.sm,
+    padding: 8,
   },
   choiceCardSelected: {
     borderColor: Colors.primary,
     backgroundColor: 'rgba(99,102,241,0.16)',
   },
   choiceIcon: {
-    width: 50,
-    height: 50,
+    width: 34,
+    height: 34,
     borderRadius: Radius.sm,
     backgroundColor: Colors.bgElevated,
     alignItems: 'center',
@@ -908,13 +910,13 @@ const styles = StyleSheet.create({
   },
   choiceTitle: {
     color: Colors.textPrimary,
-    fontSize: FontSize.base,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
   },
   choiceSub: {
     marginTop: 2,
     color: Colors.textSecondary,
-    fontSize: FontSize.sm,
+    fontSize: 10,
   },
   activeText: {
     color: Colors.primaryLight,
@@ -959,27 +961,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingTop: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     backgroundColor: Colors.bg,
   },
   totalLabel: {
     color: Colors.textSecondary,
-    fontSize: FontSize.base,
+    fontSize: FontSize.xs,
   },
   totalPrice: {
-    marginTop: 6,
+    marginTop: 2,
     color: Colors.textPrimary,
-    fontSize: FontSize.xxl,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
   },
   generateBtn: {
     flex: 1,
     maxWidth: 250,
-    minHeight: 64,
+    minHeight: 48,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -988,7 +990,7 @@ const styles = StyleSheet.create({
   },
   generateText: {
     color: '#fff',
-    fontSize: FontSize.lg,
+    fontSize: FontSize.base,
     fontWeight: FontWeight.bold,
   },
 });

@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   RefreshControl,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,6 +16,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { Badge } from '@/components/ui/Badge';
 import { PrintJobCard } from '@/components/feature/PrintJobCard';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import { usePrint } from '@/hooks/usePrint';
 import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow } from '@/constants/theme';
 
@@ -22,8 +24,10 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { jobHistory } = usePrint();
+  const { mode, setMode } = useAppTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const darkMode = mode === 'dark';
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1200);
@@ -60,6 +64,17 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}>PrintoPay</Text>
         </View>
         <View style={styles.headerActions}>
+          <View style={styles.themeToggle}>
+            <Text style={styles.themeToggleText}>Dark mode</Text>
+            <Switch
+              value={darkMode}
+              onValueChange={(enabled) => {
+                setMode(enabled ? 'dark' : 'light').catch(() => undefined);
+              }}
+              trackColor={{ false: '#cbd5e1', true: Colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
           <Pressable
             onPress={() => router.push('/scan')}
             style={styles.scanBtn}
@@ -244,9 +259,26 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   headerActions: {
+    alignItems: 'flex-end',
+    gap: Spacing.sm,
+  },
+  themeToggle: {
+    minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: 6,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.bgCard,
+    paddingLeft: 10,
+    paddingRight: 4,
+  },
+  themeToggleText: {
+    fontSize: 11,
+    fontWeight: FontWeight.semibold,
+    color: Colors.textSecondary,
+    includeFontPadding: false,
   },
   logoutBtn: {
     width: 44,

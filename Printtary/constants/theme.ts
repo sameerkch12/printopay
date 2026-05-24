@@ -1,5 +1,9 @@
 // PrintoPay Design System
-export const Colors = {
+export type ThemeMode = 'light' | 'dark';
+
+export const THEME_STORAGE_KEY = 'printopay:theme-mode';
+
+const brandColors = {
   // Brand
   primary: '#6366f1',
   primaryLight: '#818cf8',
@@ -21,14 +25,18 @@ export const Colors = {
   errorLight: '#f87171',
   errorGlow: 'rgba(239,68,68,0.2)',
   info: '#3b82f6',
+};
+
+const lightPalette = {
+  ...brandColors,
 
   // Background tiers
-  bg: '#f8fafc',
+  bg: '#ffffff',
   bgCard: '#ffffff',
   bgElevated: '#f1f5f9',
   bgSurface: '#eef2ff',
   bgInput: '#ffffff',
-  bgOverlay: 'rgba(248,250,252,0.9)',
+  bgOverlay: 'rgba(255,255,255,0.9)',
 
   // Border
   border: 'rgba(15,23,42,0.1)',
@@ -46,6 +54,56 @@ export const Colors = {
   gradientDark: ['#ffffff', '#eef2ff'],
   gradientCard: ['rgba(255,255,255,1)', 'rgba(238,242,255,0.9)'],
 };
+
+const darkPalette = {
+  ...brandColors,
+
+  // Background tiers
+  bg: '#080b14',
+  bgCard: '#0f1220',
+  bgElevated: '#141828',
+  bgSurface: '#1a2035',
+  bgInput: '#1e2540',
+  bgOverlay: 'rgba(8,11,20,0.85)',
+
+  // Border
+  border: 'rgba(255,255,255,0.07)',
+  borderFocus: 'rgba(99,102,241,0.6)',
+  borderSubtle: 'rgba(255,255,255,0.04)',
+
+  // Text
+  textPrimary: '#f1f5f9',
+  textSecondary: '#94a3b8',
+  textMuted: '#475569',
+  textInverse: '#080b14',
+
+  // Gradient stops
+  gradientPrimary: ['#6366f1', '#a855f7'],
+  gradientDark: ['#0f1220', '#1a2035'],
+  gradientCard: ['rgba(99,102,241,0.1)', 'rgba(168,85,247,0.05)'],
+};
+
+export const themePalettes = {
+  light: lightPalette,
+  dark: darkPalette,
+};
+
+let activeThemeMode: ThemeMode = 'light';
+
+export const Colors = { ...lightPalette };
+
+export function getActiveThemeMode() {
+  return activeThemeMode;
+}
+
+export function applyThemeMode(mode: ThemeMode) {
+  activeThemeMode = mode;
+  Object.assign(Colors, themePalettes[mode]);
+  Object.assign(Shadow.card, {
+    shadowColor: mode === 'dark' ? '#000' : '#94a3b8',
+    shadowOpacity: mode === 'dark' ? 0.3 : 0.18,
+  });
+}
 
 export const Spacing = {
   xs: 4,
