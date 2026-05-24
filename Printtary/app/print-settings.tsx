@@ -456,7 +456,7 @@ export default function PrintSettingsScreen() {
             </View>
             <Text style={styles.loadingTitle}>Generating print code</Text>
             <Text style={styles.loadingBody}>
-              File upload ho rahi hai. Please wait, screen band mat kijiye.
+              Uploading your files. Please keep this screen open.
             </Text>
             <View style={styles.loadingProgress}>
               <ProgressBar

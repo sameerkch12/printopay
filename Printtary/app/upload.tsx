@@ -25,6 +25,27 @@ import { useAlert } from '@/template';
 import { APP_CONFIG } from '@/constants/config';
 
 const ACCEPTED_FORMATS = ['PDF', 'JPG', 'JPEG', 'PNG', 'WEBP', 'HEIC'];
+const FORMAT_META: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+  PDF: { icon: 'document-text-outline', color: '#ef4444' },
+  JPG: { icon: 'image-outline', color: '#10b981' },
+  JPEG: { icon: 'document-outline', color: '#3b82f6' },
+  PNG: { icon: 'document-outline', color: '#f59e0b' },
+  WEBP: { icon: 'image-outline', color: '#a855f7' },
+  HEIC: { icon: 'phone-portrait-outline', color: '#14b8a6' },
+};
+const UPLOAD_STEPS = [
+  { label: 'Shop', icon: 'cart-outline' },
+  { label: 'Upload', icon: 'cloud-upload' },
+  { label: 'Settings', icon: undefined },
+  { label: 'Print Code', icon: undefined },
+] as const;
+const UPLOAD_TIPS = [
+  { icon: 'checkmark-circle-outline', color: Colors.success, text: 'PDF, JPG, PNG, WEBP, and HEIC files are supported' },
+  { icon: 'camera-outline', color: Colors.info, text: 'Use clear images for ID cards, forms, notes, and photocopies' },
+  { icon: 'time-outline', color: Colors.accent, text: 'Files are automatically deleted after 24 hours' },
+  { icon: 'layers-outline', color: Colors.warning, text: 'Add up to 10 files in one print job' },
+  { icon: 'lock-closed-outline', color: Colors.error, text: 'Shop owner can download or print only after print code verification' },
+] as const;
 const ACCEPTED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
@@ -146,20 +167,20 @@ export default function UploadScreen() {
 
       {/* Steps indicator */}
       <View style={styles.stepsBar}>
-        {['Shop', 'Upload', 'Settings', 'Print Code'].map((step, idx) => (
-          <React.Fragment key={step}>
+        {UPLOAD_STEPS.map((step, idx) => (
+          <React.Fragment key={step.label}>
             <View style={styles.stepItem}>
               <View style={[styles.stepDot, idx <= 1 && styles.stepDotDone, idx === 1 && styles.stepDotActive]}>
                 {idx < 1 ? (
-                  <Ionicons name="checkmark" size={12} color="#fff" />
+                  <Ionicons name={step.icon ?? 'checkmark'} size={22} color={Colors.textSecondary} />
                 ) : idx === 1 ? (
-                  <Ionicons name="cloud-upload" size={12} color="#fff" />
+                  <Ionicons name="cloud-upload" size={18} color="#fff" />
                 ) : (
                   <Text style={styles.stepDotNum}>{idx + 1}</Text>
                 )}
               </View>
               <Text style={[styles.stepLabel, idx <= 1 && styles.stepLabelDone, idx === 1 && styles.stepLabelActive]}>
-                {step}
+                {step.label}
               </Text>
             </View>
             {idx < 3 && <View style={[styles.stepLine, idx < 1 && styles.stepLineDone]} />}
@@ -197,44 +218,69 @@ export default function UploadScreen() {
                       colors={[Colors.primary, Colors.accent]}
                       style={styles.dropIcon}
                     >
-                      <Ionicons name="cloud-upload" size={32} color="#fff" />
+                      <Ionicons name="cloud-upload" size={38} color="#fff" />
                     </LinearGradient>
-                    <Text style={styles.dropTitle}>Drop your file here</Text>
-                    <Text style={styles.dropSubtitle}>or tap to browse files</Text>
+                    <Text style={styles.dropTitle}>Upload your files</Text>
+                    <Text style={styles.dropSubtitle}>
+                      Click the button below to <Text style={styles.dropSubtitleStrong}>select files</Text>
+                    </Text>
+                    <Text style={styles.dropHint}>or drag & drop files here</Text>
+
+                    <LinearGradient
+                      colors={[Colors.primary, Colors.accent]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.selectFilesButton}
+                    >
+                      <Ionicons name="folder-open-outline" size={22} color="#fff" />
+                      <Text style={styles.selectFilesText}>Select Files</Text>
+                    </LinearGradient>
 
                     <View style={styles.formatsList}>
-                      {ACCEPTED_FORMATS.map(fmt => (
+                      {ACCEPTED_FORMATS.map((fmt) => (
                         <View key={fmt} style={styles.formatBadge}>
+                          <Ionicons name={FORMAT_META[fmt].icon} size={18} color={FORMAT_META[fmt].color} />
                           <Text style={styles.formatText}>{fmt}</Text>
                         </View>
                       ))}
                     </View>
 
-                    <Text style={styles.maxSize}>Maximum {MAX_FILES} files. Each file up to {MAX_SIZE_MB}MB</Text>
+                    <View style={styles.uploadLimits}>
+                      <View style={styles.uploadLimitItem}>
+                        <Ionicons name="documents-outline" size={20} color={Colors.textSecondary} />
+                        <Text style={styles.uploadLimitText}>Maximum {MAX_FILES} files</Text>
+                      </View>
+                      <View style={styles.uploadLimitDivider} />
+                      <View style={styles.uploadLimitItem}>
+                        <Ionicons name="document-outline" size={20} color={Colors.textSecondary} />
+                        <Text style={styles.uploadLimitText}>Each file up to {MAX_SIZE_MB}MB</Text>
+                      </View>
+                    </View>
                   </View>
                 )}
               </LinearGradient>
             </Pressable>
 
             {/* Tips */}
-            <GlassCard style={styles.tipsCard}>
+            <View style={styles.tipsCard}>
               <View style={styles.tipsHeader}>
-                <Ionicons name="information-circle" size={18} color={Colors.info} />
+                <LinearGradient
+                  colors={[Colors.primary, Colors.accent]}
+                  style={styles.tipsHeaderIcon}
+                >
+                  <Ionicons name="bulb-outline" size={22} color="#fff" />
+                </LinearGradient>
                 <Text style={styles.tipsTitle}>Upload Tips</Text>
               </View>
-              {[
-                'PDF, JPG, PNG, WEBP, and HEIC files are supported',
-                'Use clear images for ID cards, forms, notes, and photocopies',
-                'Files are automatically deleted after 24 hours',
-                `Add up to ${MAX_FILES} files in one print job`,
-                'Shop owner can download or print only after print code verification',
-              ].map((tip, idx) => (
-                <View key={idx} style={styles.tipItem}>
-                  <View style={styles.tipDot} />
-                  <Text style={styles.tipText}>{tip}</Text>
+              {UPLOAD_TIPS.map((tip) => (
+                <View key={tip.text} style={styles.tipItem}>
+                  <View style={[styles.tipIconWrap, { backgroundColor: `${tip.color}14` }]}>
+                    <Ionicons name={tip.icon} size={20} color={tip.color} />
+                  </View>
+                  <Text style={styles.tipText}>{tip.text}</Text>
                 </View>
               ))}
-            </GlassCard>
+            </View>
           </View>
         ) : (
           /* File selected state */
@@ -363,20 +409,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
     backgroundColor: Colors.bgCard,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   stepItem: {
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
     flex: 1,
   },
   stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: Colors.bgSurface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -384,7 +431,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   stepDotDone: {
-    backgroundColor: 'rgba(99,102,241,0.3)',
+    backgroundColor: Colors.bgSurface,
     borderColor: Colors.primary,
   },
   stepDotActive: {
@@ -393,15 +440,15 @@ const styles = StyleSheet.create({
     ...Shadow.glow,
   },
   stepDotNum: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.semibold,
     color: Colors.textMuted,
     includeFontPadding: false,
   },
   stepLabel: {
-    fontSize: 9,
-    color: Colors.textMuted,
-    fontWeight: '500',
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    fontWeight: FontWeight.medium,
     includeFontPadding: false,
     textAlign: 'center',
   },
@@ -413,10 +460,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stepLine: {
-    height: 1,
-    flex: 0.8,
+    height: 3,
+    flex: 0.7,
     backgroundColor: Colors.border,
-    marginTop: -10,
+    marginTop: -28,
+    borderRadius: Radius.full,
   },
   stepLineDone: {
     backgroundColor: Colors.primary,
@@ -432,62 +480,130 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: 'rgba(99,102,241,0.3)',
-    minHeight: 240,
+    borderColor: 'rgba(99,102,241,0.32)',
+    minHeight: 430,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
   },
   dropZoneActive: {
     borderColor: Colors.primary,
   },
   dropContent: {
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
+    width: '100%',
   },
   dropIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: Spacing.md,
     ...Shadow.glow,
   },
   dropTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
+    fontSize: FontSize.xxl,
+    fontWeight: FontWeight.extrabold,
     color: Colors.textPrimary,
     includeFontPadding: false,
+    textAlign: 'center',
   },
   dropSubtitle: {
     fontSize: FontSize.base,
     color: Colors.textSecondary,
     includeFontPadding: false,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  dropSubtitleStrong: {
+    color: Colors.primary,
+    fontWeight: FontWeight.bold,
+  },
+  dropHint: {
+    fontSize: FontSize.base,
+    color: Colors.textSecondary,
+    includeFontPadding: false,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  selectFilesButton: {
+    minHeight: 58,
+    width: '72%',
+    minWidth: 220,
+    maxWidth: 360,
+    borderRadius: Radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: Spacing.lg,
+    ...Shadow.glow,
+  },
+  selectFilesText: {
+    color: '#fff',
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    includeFontPadding: false,
   },
   formatsList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 10,
     justifyContent: 'center',
-    marginTop: 4,
+    marginBottom: Spacing.lg,
   },
   formatBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(99,102,241,0.12)',
-    borderRadius: Radius.full,
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 13,
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(99,102,241,0.2)',
+    borderColor: Colors.border,
   },
   formatText: {
-    fontSize: 11,
+    fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.primaryLight,
+    color: Colors.textSecondary,
     includeFontPadding: false,
   },
   maxSize: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
+    includeFontPadding: false,
+  },
+  uploadLimits: {
+    width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderSubtle,
+    paddingTop: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
+  uploadLimitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    flexShrink: 1,
+  },
+  uploadLimitDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: Colors.border,
+  },
+  uploadLimitText: {
+    flexShrink: 1,
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
     includeFontPadding: false,
   },
   addMoreBtn: {
@@ -519,37 +635,50 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   tipsCard: {
-    gap: 10,
+    gap: Spacing.md,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    backgroundColor: Colors.bgCard,
+    padding: Spacing.lg,
+    ...Shadow.card,
   },
   tipsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
+    gap: 14,
+    marginBottom: Spacing.xs,
+  },
+  tipsHeaderIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tipsTitle: {
-    fontSize: FontSize.base,
-    fontWeight: FontWeight.semibold,
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.extrabold,
     color: Colors.textPrimary,
     includeFontPadding: false,
   },
   tipItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
+    alignItems: 'center',
+    gap: Spacing.md,
   },
-  tipDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.info,
-    marginTop: 6,
+  tipIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tipText: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.base,
     color: Colors.textSecondary,
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 22,
     includeFontPadding: false,
   },
   fileSelectedSection: {
