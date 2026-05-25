@@ -1,3 +1,5 @@
+import { StyleSheet } from 'react-native';
+
 // PrintoPay Design System
 export type ThemeMode = 'light' | 'dark';
 
@@ -92,17 +94,96 @@ let activeThemeMode: ThemeMode = 'light';
 
 export const Colors = { ...lightPalette };
 
+type StyleRecord = Record<string, unknown>;
+
+const themedStyleObjects = new Set<StyleRecord>();
+const originalCreate = StyleSheet.create.bind(StyleSheet);
+
+function isPlainObject(value: unknown): value is StyleRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function registerThemedStyles(styles: unknown) {
+  if (!isPlainObject(styles)) return;
+
+  for (const style of Object.values(styles)) {
+    if (isPlainObject(style)) {
+      themedStyleObjects.add(style);
+    }
+  }
+}
+
+function buildThemeValueMap(fromMode: ThemeMode, toMode: ThemeMode) {
+  const fromPalette = themePalettes[fromMode] as Record<string, unknown>;
+  const toPalette = themePalettes[toMode] as Record<string, unknown>;
+  const valueMap = new Map<unknown, unknown>();
+
+  for (const key of Object.keys(fromPalette)) {
+    valueMap.set(fromPalette[key], toPalette[key]);
+  }
+
+  return valueMap;
+}
+
+function rethemeValue(value: unknown, valueMap: Map<unknown, unknown>): unknown {
+  if (valueMap.has(value)) {
+    return valueMap.get(value);
+  }
+
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item) => {
+      const rethemed = rethemeValue(item, valueMap);
+      changed ||= rethemed !== item;
+      return rethemed;
+    });
+    return changed ? next : value;
+  }
+
+  return value;
+}
+
+function rethemeRegisteredStyles(fromMode: ThemeMode, toMode: ThemeMode) {
+  const valueMap = buildThemeValueMap(fromMode, toMode);
+
+  for (const style of themedStyleObjects) {
+    for (const [key, value] of Object.entries(style)) {
+      const rethemed = rethemeValue(value, valueMap);
+      if (rethemed !== value) {
+        style[key] = rethemed;
+      }
+    }
+  }
+}
+
+if (!(StyleSheet.create as typeof StyleSheet.create & { __printopayThemed?: boolean }).__printopayThemed) {
+  const themedCreate = (<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<unknown>>(
+    styles: T & StyleSheet.NamedStyles<T>
+  ) => {
+    const created = originalCreate(styles);
+    registerThemedStyles(created);
+    return created;
+  }) as typeof StyleSheet.create & { __printopayThemed?: boolean };
+
+  themedCreate.__printopayThemed = true;
+  StyleSheet.create = themedCreate;
+}
+
 export function getActiveThemeMode() {
   return activeThemeMode;
 }
 
 export function applyThemeMode(mode: ThemeMode) {
+  const previousMode = activeThemeMode;
   activeThemeMode = mode;
   Object.assign(Colors, themePalettes[mode]);
   Object.assign(Shadow.card, {
     shadowColor: mode === 'dark' ? '#000' : '#94a3b8',
     shadowOpacity: mode === 'dark' ? 0.3 : 0.18,
   });
+  if (previousMode !== mode) {
+    rethemeRegisteredStyles(previousMode, mode);
+  }
 }
 
 export const Spacing = {
