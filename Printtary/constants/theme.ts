@@ -97,7 +97,6 @@ export const Colors = { ...lightPalette };
 type StyleRecord = Record<string, unknown>;
 
 const themedStyleObjects = new Set<StyleRecord>();
-const originalCreate = StyleSheet.create.bind(StyleSheet);
 
 function isPlainObject(value: unknown): value is StyleRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -160,9 +159,8 @@ if (!(StyleSheet.create as typeof StyleSheet.create & { __printopayThemed?: bool
   const themedCreate = (<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<unknown>>(
     styles: T & StyleSheet.NamedStyles<T>
   ) => {
-    const created = originalCreate(styles);
-    registerThemedStyles(created);
-    return created;
+    registerThemedStyles(styles);
+    return styles;
   }) as typeof StyleSheet.create & { __printopayThemed?: boolean };
 
   themedCreate.__printopayThemed = true;
