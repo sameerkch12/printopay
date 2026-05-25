@@ -515,7 +515,7 @@ export default function PrintSettingsScreen() {
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.generateText}>Generate Print Code</Text>
+            <Text style={styles.generateText}>Send</Text>
           )}
         </Pressable>
       </View>
