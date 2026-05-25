@@ -22,6 +22,7 @@ import { usePrint } from '@/hooks/usePrint';
 import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow } from '@/constants/theme';
 
 const SHOP_OWNER_REGISTER_URL = 'https://shop.printopay.com/';
+const ENABLE_THEME_TOGGLE = false;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -67,17 +68,19 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}>PrintoPay</Text>
         </View>
         <View style={styles.headerActions}>
-          <View style={styles.themeToggle}>
-            <Text style={styles.themeToggleText}>Dark mode</Text>
-            <Switch
-              value={darkMode}
-              onValueChange={(enabled) => {
-                setMode(enabled ? 'dark' : 'light').catch(() => undefined);
-              }}
-              trackColor={{ false: '#cbd5e1', true: Colors.primary }}
-              thumbColor="#fff"
-            />
-          </View>
+          {ENABLE_THEME_TOGGLE && (
+            <View style={styles.themeToggle}>
+              <Text style={styles.themeToggleText}>Dark mode</Text>
+              <Switch
+                value={darkMode}
+                onValueChange={(enabled) => {
+                  setMode(enabled ? 'dark' : 'light').catch(() => undefined);
+                }}
+                trackColor={{ false: '#cbd5e1', true: Colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+          )}
           <Pressable
             onPress={() => router.push('/scan')}
             style={styles.scanBtn}
