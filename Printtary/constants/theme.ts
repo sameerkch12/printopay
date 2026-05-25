@@ -96,7 +96,7 @@ export const Colors = { ...lightPalette };
 
 type StyleRecord = Record<string, unknown>;
 
-const themedStyleObjects = new Set<StyleRecord>();
+const themedStyleObjects = new Map<StyleRecord, StyleRecord>();
 
 function isPlainObject(value: unknown): value is StyleRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -107,7 +107,7 @@ function registerThemedStyles(styles: unknown) {
 
   for (const style of Object.values(styles)) {
     if (isPlainObject(style)) {
-      themedStyleObjects.add(style);
+      themedStyleObjects.set(style, normalizeStyleToMode(style, activeThemeMode, 'light'));
     }
   }
 }
@@ -142,14 +142,27 @@ function rethemeValue(value: unknown, valueMap: Map<unknown, unknown>): unknown 
   return value;
 }
 
-function rethemeRegisteredStyles(fromMode: ThemeMode, toMode: ThemeMode) {
+function normalizeStyleToMode(style: StyleRecord, fromMode: ThemeMode, toMode: ThemeMode) {
   const valueMap = buildThemeValueMap(fromMode, toMode);
+  const normalized: StyleRecord = {};
 
-  for (const style of themedStyleObjects) {
-    for (const [key, value] of Object.entries(style)) {
+  for (const [key, value] of Object.entries(style)) {
+    normalized[key] = rethemeValue(value, valueMap);
+  }
+
+  return normalized;
+}
+
+function rethemeRegisteredStyles(toMode: ThemeMode) {
+  const valueMap = buildThemeValueMap('light', toMode);
+
+  for (const [style, lightStyle] of themedStyleObjects) {
+    for (const [key, value] of Object.entries(lightStyle)) {
       const rethemed = rethemeValue(value, valueMap);
       if (rethemed !== value) {
         style[key] = rethemed;
+      } else if (style[key] !== value) {
+        style[key] = value;
       }
     }
   }
@@ -180,7 +193,7 @@ export function applyThemeMode(mode: ThemeMode) {
     shadowOpacity: mode === 'dark' ? 0.3 : 0.18,
   });
   if (previousMode !== mode) {
-    rethemeRegisteredStyles(previousMode, mode);
+    rethemeRegisteredStyles(mode);
   }
 }
 
