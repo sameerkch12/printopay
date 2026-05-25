@@ -15,13 +15,25 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { usePrint } from '@/hooks/usePrint';
 import { calculatePrintPrice, fetchShopDetails, formatFileSize, getShopPrintRate } from '@/services/printService';
-import { PrintSettings } from '@/types';
+import { PrintSettings, UploadedFile } from '@/types';
 import { Colors, FontSize, FontWeight, Radius, Spacing, Shadow } from '@/constants/theme';
-import { PRINT_CONFIG } from '@/constants/config';
+import { APP_CONFIG, PRINT_CONFIG } from '@/constants/config';
+
+const ACCEPTED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+];
+const MAX_FILES = 10;
+const MAX_SIZE_MB = APP_CONFIG.maxFileSizeMB;
 
 const FIXED_DEFAULTS = {
   sides: 'single',
@@ -66,6 +78,7 @@ export default function PrintSettingsScreen() {
   const [settingsByFileId, setSettingsByFileId] = useState<Record<string, PrintSettings>>({});
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [addingFiles, setAddingFiles] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const { width } = useWindowDimensions();
 
@@ -159,6 +172,55 @@ export default function PrintSettingsScreen() {
     setActiveFileIndex(nextIndex);
   };
 
+  const handleAddFiles = async () => {
+    setSubmitError('');
+    if (filesToPrint.length >= MAX_FILES) {
+      setSubmitError(`You can add up to ${MAX_FILES} files in one print job.`);
+      return;
+    }
+
+    try {
+      setAddingFiles(true);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ACCEPTED_MIME_TYPES,
+        copyToCacheDirectory: true,
+        multiple: true,
+      });
+
+      if (result.canceled) return;
+
+      const remainingSlots = MAX_FILES - filesToPrint.length;
+      const assets = result.assets.slice(0, remainingSlots);
+      if (!assets.length) {
+        setSubmitError(`You can add up to ${MAX_FILES} files in one print job.`);
+        return;
+      }
+
+      if (assets.some((asset) => asset.size && asset.size > MAX_SIZE_MB * 1024 * 1024)) {
+        setSubmitError(`Maximum file size is ${MAX_SIZE_MB}MB. Please choose a smaller file.`);
+        return;
+      }
+
+      const newFiles: UploadedFile[] = assets.map((asset, index) => ({
+        id: `file_${Date.now()}_${index}`,
+        name: asset.name,
+        size: asset.size ?? 0,
+        type: asset.mimeType ?? mimeTypeFromName(asset.name),
+        uri: asset.uri,
+        pages: 1,
+        uploadedAt: new Date(),
+        expiresAt: new Date(Date.now() + 24 * 3600000),
+      }));
+      const nextFiles = [...filesToPrint, ...newFiles].slice(0, MAX_FILES);
+      setSelectedFiles(nextFiles);
+      requestAnimationFrame(() => goToFile(filesToPrint.length));
+    } catch {
+      setSubmitError('Could not add files. Please try again.');
+    } finally {
+      setAddingFiles(false);
+    }
+  };
+
   const handleRemoveActiveFile = () => {
     if (filesToPrint.length <= 1) {
       router.back();
@@ -233,9 +295,19 @@ export default function PrintSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topRow}>
-          <Pressable style={styles.addFilesBtn} onPress={() => router.back()}>
-            <Ionicons name="document-attach-outline" size={18} color={Colors.primaryLight} />
-            <Text style={styles.addFilesText}>Add files</Text>
+          <Pressable
+            style={[styles.addFilesBtn, (addingFiles || filesToPrint.length >= MAX_FILES) && styles.addFilesBtnDisabled]}
+            onPress={handleAddFiles}
+            disabled={addingFiles || filesToPrint.length >= MAX_FILES}
+          >
+            {addingFiles ? (
+              <ActivityIndicator color={Colors.primaryLight} size="small" />
+            ) : (
+              <Ionicons name="document-attach-outline" size={18} color={Colors.primaryLight} />
+            )}
+            <Text style={styles.addFilesText}>
+              {filesToPrint.length >= MAX_FILES ? `Max ${MAX_FILES} files` : 'Add files'}
+            </Text>
           </Pressable>
         </View>
 
@@ -537,6 +609,20 @@ function parseRangeCount(range: string, total: number): number {
   return count || total;
 }
 
+function mimeTypeFromName(name: string) {
+  const ext = name.split('.').pop()?.toLowerCase();
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif',
+  };
+  return map[ext ?? ''] ?? 'application/octet-stream';
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -590,6 +676,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     paddingHorizontal: 12,
     paddingVertical: 7,
+  },
+  addFilesBtnDisabled: {
+    opacity: 0.58,
   },
   addFilesText: {
     color: Colors.primaryLight,

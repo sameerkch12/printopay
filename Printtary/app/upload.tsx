@@ -129,8 +129,10 @@ export default function UploadScreen() {
         expiresAt: new Date(Date.now() + 24 * 3600000),
       }));
 
-      setSelectedFiles([...selectedFiles, ...files].slice(0, MAX_FILES));
+      const nextFiles = [...selectedFiles, ...files].slice(0, MAX_FILES);
+      setSelectedFiles(nextFiles);
       setUploading(false);
+      router.replace({ pathname: '/print-settings', params: selectedShop ? { shopId: selectedShop.id } : undefined });
 
     } catch {
       setUploading(false);

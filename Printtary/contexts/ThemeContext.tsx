@@ -1,5 +1,4 @@
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { DevSettings, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { applyThemeMode, getActiveThemeMode, THEME_STORAGE_KEY, ThemeMode } from '@/constants/theme';
 
@@ -9,15 +8,6 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
-
-function reloadApp() {
-  if (Platform.OS === 'web') {
-    globalThis.location?.reload();
-    return;
-  }
-
-  (DevSettings as { reload?: () => void }).reload?.();
-}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setThemeMode] = useState<ThemeMode>(getActiveThemeMode());
@@ -50,7 +40,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, nextMode);
       applyThemeMode(nextMode);
       setThemeMode(nextMode);
-      reloadApp();
     },
   }), [mode]);
 

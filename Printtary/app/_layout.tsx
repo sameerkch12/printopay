@@ -54,7 +54,6 @@ function AppStack() {
     <>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} backgroundColor={Colors.bg} />
       <Stack
-        key={mode}
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: Colors.bg },
